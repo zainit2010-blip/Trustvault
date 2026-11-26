@@ -1,0 +1,2376 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>TrustVault — Multi-Chain Crypto Wallet</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;600;700&display=swap" rel="stylesheet">
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'sans-serif'],
+            mono: ['JetBrains Mono', 'monospace'],
+          },
+          colors: {
+            trust: {
+              blue: '#3375BB',
+              blueHover: '#28609D',
+              cyan: '#00D1FF',
+              green: '#05B169',
+              purple: '#7C5CFF',
+              darkBg: '#0B0E14',
+              darkCard: '#141923',
+              darkElevated: '#1C2331',
+              lightBg: '#F4F6F9',
+              lightCard: '#FFFFFF',
+              lightElevated: '#EDF1F7'
+            }
+          }
+        }
+      }
+    };
+  </script>
+  <style>
+    * {
+      box-sizing: border-box;
+      -webkit-tap-highlight-color: transparent;
+    }
+    body {
+      font-family: 'Inter', sans-serif;
+      margin: 0;
+      padding: 0;
+      overflow-x: hidden;
+      transition: background-color 0.25s ease, color 0.25s ease;
+    }
+    .no-scrollbar::-webkit-scrollbar {
+      display: none;
+    }
+    .no-scrollbar {
+      -ms-overflow-style: none;
+      scrollbar-width: none;
+    }
+    input[type="number"]::-webkit-inner-spin-button,
+    input[type="number"]::-webkit-outer-spin-button {
+      -webkit-appearance: none;
+      margin: 0;
+    }
+    @keyframes shake {
+      0%, 100% { transform: translateX(0); }
+      20%, 60% { transform: translateX(-6px); }
+      40%, 80% { transform: translateX(6px); }
+    }
+    .animate-shake {
+      animation: shake 0.35s ease-in-out;
+    }
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .animate-fade-up {
+      animation: fadeUp 0.25s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+    }
+    .modal-sheet {
+      transition: transform 0.3s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.25s ease;
+    }
+    .modal-hidden {
+      opacity: 0;
+      pointer-events: none;
+      transform: translateY(18px);
+    }
+    .modal-visible {
+      opacity: 1;
+      pointer-events: auto;
+      transform: translateY(0);
+    }
+    .virtual-card {
+      perspective: 900px;
+      background: linear-gradient(135deg, #0F172A 0%, #1B365D 52%, #2B6CB0 100%);
+      transition: transform 0.28s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.28s ease;
+    }
+    .virtual-card:hover {
+      transform: translateY(-2px) rotateX(2deg);
+      box-shadow: 0 20px 35px -12px rgba(51, 117, 187, 0.42);
+    }
+  </style>
+</head>
+<body class="bg-trust-lightBg text-slate-900 dark:bg-trust-darkBg dark:text-white min-h-screen flex justify-center">
+
+  <div class="w-full max-w-[480px] min-h-screen bg-trust-lightBg dark:bg-trust-darkBg border-x border-slate-200/80 dark:border-slate-800/80 relative flex flex-col shadow-2xl">
+
+    <!-- GLOBAL TOAST NOTIFICATION -->
+    <div id="toast-box" class="fixed top-5 left-1/2 -translate-x-1/2 z-[150] hidden items-center gap-2.5 px-4 py-3 rounded-2xl shadow-xl text-xs font-semibold tracking-wide bg-slate-900 text-white dark:bg-white dark:text-slate-900 border border-slate-700 dark:border-slate-200">
+      <span id="toast-dot" class="w-2 h-2 rounded-full bg-trust-green"></span>
+      <span id="toast-msg"></span>
+    </div>
+
+    <!-- INITIALIZING / LOADING OVERLAY -->
+    <div id="boot-loader" class="fixed inset-0 z-[140] bg-trust-lightBg dark:bg-trust-darkBg flex flex-col items-center justify-center gap-3">
+      <div class="w-12 h-12 rounded-2xl bg-trust-blue flex items-center justify-center shadow-lg shadow-trust-blue/30 animate-pulse">
+        <svg class="w-6 h-6 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4">
+          <path d="M12 2L4 5.5v6.09c0 5.05 3.41 9.76 8 10.91 4.59-1.15 8-5.86 8-10.91V5.5L12 2z"/>
+        </svg>
+      </div>
+      <span class="text-xs font-bold tracking-wider uppercase text-slate-500 dark:text-slate-400">Syncing Cloud Vault...</span>
+    </div>
+
+    <!-- ==================== AUTH SCREEN (LOGIN & SIGNUP) ==================== -->
+    <div id="auth-screen" class="hidden flex-1 flex flex-col justify-between p-6">
+      <div class="flex items-center justify-between pt-2">
+        <div class="flex items-center gap-2.5">
+          <div class="w-9 h-9 rounded-xl bg-trust-blue flex items-center justify-center shadow-lg shadow-trust-blue/25">
+            <svg class="w-5 h-5 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+              <path d="M12 2L4 5.5v6.09c0 5.05 3.41 9.76 8 10.91 4.59-1.15 8-5.86 8-10.91V5.5L12 2z"/>
+            </svg>
+          </div>
+          <span class="font-bold text-lg tracking-tight">TrustVault</span>
+        </div>
+        <button type="button" onclick="toggleTheme()" aria-label="Toggle Theme" class="w-9 h-9 rounded-xl bg-white dark:bg-trust-darkCard border border-slate-200 dark:border-slate-800 flex items-center justify-center text-slate-600 dark:text-slate-300 hover:border-trust-blue transition cursor-pointer">
+          <svg class="w-4 h-4 hidden dark:block text-amber-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
+          <svg class="w-4 h-4 block dark:hidden text-trust-blue" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/></svg>
+        </button>
+      </div>
+
+      <div id="auth-card" class="my-auto py-6">
+        <div class="mb-6">
+          <h1 id="auth-heading" class="text-2xl font-extrabold tracking-tight">Welcome Back</h1>
+          <p id="auth-subtext" class="text-xs text-slate-500 dark:text-slate-400 mt-1">Sign in with your email and password to access your cloud wallet</p>
+        </div>
+
+        <!-- Tabs -->
+        <div class="grid grid-cols-2 p-1 rounded-2xl bg-slate-200/70 dark:bg-trust-darkCard mb-6 border border-slate-200 dark:border-slate-800">
+          <button type="button" id="tab-login" onclick="switchAuthTab('login')" class="py-2.5 text-xs font-bold rounded-xl bg-white dark:bg-trust-blue text-slate-900 dark:text-white shadow-sm transition cursor-pointer">Login Wallet</button>
+          <button type="button" id="tab-signup" onclick="switchAuthTab('signup')" class="py-2.5 text-xs font-bold rounded-xl text-slate-500 dark:text-slate-400 transition cursor-pointer">Create Wallet</button>
+        </div>
+
+        <!-- Success Banner -->
+        <div id="auth-success" class="hidden mb-4 p-3.5 rounded-xl bg-trust-green/10 border border-trust-green/30 text-trust-green text-xs font-semibold flex items-center gap-2">
+          <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
+          <span id="auth-success-text">Account created! Please login with your email & password.</span>
+        </div>
+
+        <!-- Error Banner -->
+        <div id="auth-error" class="hidden mb-4 p-3.5 rounded-xl bg-red-500/10 border border-red-500/30 text-red-600 dark:text-red-400 text-xs font-semibold flex items-center gap-2">
+          <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+          <span id="auth-error-text">Wrong email or password</span>
+        </div>
+
+        <!-- LOGIN FORM (STRICTLY BLANK INPUTS) -->
+        <form id="login-form" onsubmit="handleLogin(event)" autocomplete="off" class="space-y-4">
+          <div>
+            <label class="block text-[11px] font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1.5">Email Address</label>
+            <input type="email" id="login-email" required autocomplete="off"
+              class="w-full px-4 py-3.5 rounded-2xl bg-white dark:bg-trust-darkCard border border-slate-200 dark:border-slate-800 text-sm font-medium focus:outline-none focus:border-trust-blue transition" />
+          </div>
+          <div>
+            <label class="block text-[11px] font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1.5">Password</label>
+            <div class="relative">
+              <input type="password" id="login-password" required autocomplete="new-password"
+                class="w-full px-4 py-3.5 pr-11 rounded-2xl bg-white dark:bg-trust-darkCard border border-slate-200 dark:border-slate-800 text-sm font-medium focus:outline-none focus:border-trust-blue transition" />
+              <button type="button" onclick="togglePass('login-password')" class="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-trust-blue cursor-pointer">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+              </button>
+            </div>
+          </div>
+          <button type="submit" id="login-submit-btn" class="w-full py-3.5 mt-2 rounded-2xl bg-trust-blue hover:bg-trust-blueHover text-white font-bold text-sm shadow-lg shadow-trust-blue/25 active:scale-[0.99] transition cursor-pointer">
+            Login Wallet
+          </button>
+        </form>
+
+        <!-- SIGNUP FORM (STRICTLY BLANK INPUTS) -->
+        <form id="signup-form" onsubmit="handleSignup(event)" autocomplete="off" class="space-y-3.5 hidden">
+          <div>
+            <label class="block text-[11px] font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1.5">Full Name</label>
+            <input type="text" id="signup-name" required autocomplete="off"
+              class="w-full px-4 py-3.5 rounded-2xl bg-white dark:bg-trust-darkCard border border-slate-200 dark:border-slate-800 text-sm font-medium focus:outline-none focus:border-trust-blue transition" />
+          </div>
+          <div>
+            <label class="block text-[11px] font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1.5">Email Address</label>
+            <input type="email" id="signup-email" required autocomplete="off"
+              class="w-full px-4 py-3.5 rounded-2xl bg-white dark:bg-trust-darkCard border border-slate-200 dark:border-slate-800 text-sm font-medium focus:outline-none focus:border-trust-blue transition" />
+          </div>
+          <div>
+            <label class="block text-[11px] font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1.5">Password (Min 6 chars)</label>
+            <input type="password" id="signup-password" required minlength="6" autocomplete="new-password"
+              class="w-full px-4 py-3.5 rounded-2xl bg-white dark:bg-trust-darkCard border border-slate-200 dark:border-slate-800 text-sm font-medium focus:outline-none focus:border-trust-blue transition" />
+          </div>
+          <div>
+            <label class="block text-[11px] font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1.5">Confirm Password</label>
+            <input type="password" id="signup-confirm" required minlength="6" autocomplete="new-password"
+              class="w-full px-4 py-3.5 rounded-2xl bg-white dark:bg-trust-darkCard border border-slate-200 dark:border-slate-800 text-sm font-medium focus:outline-none focus:border-trust-blue transition" />
+          </div>
+          <button type="submit" id="signup-submit-btn" class="w-full py-3.5 mt-2 rounded-2xl bg-trust-blue hover:bg-trust-blueHover text-white font-bold text-sm shadow-lg shadow-trust-blue/25 active:scale-[0.99] transition cursor-pointer">
+            Create Wallet
+          </button>
+        </form>
+      </div>
+
+      <div class="text-center text-[11px] text-slate-400 dark:text-slate-500 pb-2">
+        Cloud-Synced Multi-Chain Wallet • Real-Time Sync
+      </div>
+    </div>
+
+    <!-- ==================== BLOCKED ACCOUNT NOTICE SCREEN ==================== -->
+    <div id="blocked-screen" class="hidden flex-1 flex flex-col items-center justify-center p-6 text-center space-y-5">
+      <div class="w-16 h-16 rounded-3xl bg-red-500/15 text-red-500 flex items-center justify-center">
+        <svg class="w-8 h-8" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg>
+      </div>
+      <div>
+        <h2 class="text-xl font-extrabold text-red-500">Account Suspended</h2>
+        <p class="text-xs text-slate-500 dark:text-slate-400 mt-1.5 max-w-xs mx-auto">Your TrustVault account has been temporarily restricted by the administrator. Please contact support for assistance.</p>
+      </div>
+      <button type="button" onclick="handleLogout()" class="px-6 py-3 rounded-2xl bg-slate-900 dark:bg-white text-white dark:text-slate-900 font-bold text-xs cursor-pointer">
+        Sign Out
+      </button>
+    </div>
+
+    <!-- ==================== MAIN APP SHELL ==================== -->
+    <div id="app-shell" class="hidden flex-1 flex flex-col pb-24">
+
+      <!-- TOP HEADER -->
+      <header class="sticky top-0 z-30 px-5 py-4 bg-trust-lightBg/90 dark:bg-trust-darkBg/90 backdrop-blur-md flex items-center justify-between border-b border-slate-200/60 dark:border-slate-800/60">
+        <div class="flex items-center gap-2.5">
+          <button type="button" id="header-back-btn" onclick="handleTopBack()" class="hidden px-2.5 py-1.5 rounded-xl bg-white dark:bg-trust-darkCard border border-slate-200 dark:border-slate-800 text-xs font-bold text-slate-700 dark:text-slate-200 hover:border-trust-blue transition cursor-pointer">
+            ← Back
+          </button>
+          <div id="header-brand" class="flex items-center gap-2.5">
+            <div class="w-8 h-8 rounded-xl bg-trust-blue flex items-center justify-center shadow-md shadow-trust-blue/20">
+              <svg class="w-4 h-4 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4">
+                <path d="M12 2L4 5.5v6.09c0 5.05 3.41 9.76 8 10.91 4.59-1.15 8-5.86 8-10.91V5.5L12 2z"/>
+              </svg>
+            </div>
+            <div>
+              <span class="font-bold text-base tracking-tight block leading-none">TrustVault</span>
+              <span class="text-[10px] font-semibold text-trust-green flex items-center gap-1 mt-0.5">
+                <span class="w-1.5 h-1.5 rounded-full bg-trust-green animate-pulse"></span> Cloud Synced
+              </span>
+            </div>
+          </div>
+        </div>
+
+        <div class="flex items-center gap-2">
+          <button type="button" id="header-admin-pill" onclick="switchMainTab('admin')" class="hidden px-3 py-1.5 rounded-xl bg-trust-purple/15 text-trust-purple border border-trust-purple/30 text-[11px] font-extrabold tracking-wide cursor-pointer">
+            Admin
+          </button>
+          <button type="button" onclick="refreshLivePrices()" title="Refresh Prices" class="w-9 h-9 rounded-xl bg-white dark:bg-trust-darkCard border border-slate-200 dark:border-slate-800 flex items-center justify-center text-slate-600 dark:text-slate-300 hover:border-trust-blue transition cursor-pointer">
+            <svg id="refresh-icon" class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/></svg>
+          </button>
+          <button type="button" onclick="toggleTheme()" title="Switch Dark / White Theme" class="w-9 h-9 rounded-xl bg-white dark:bg-trust-darkCard border border-slate-200 dark:border-slate-800 flex items-center justify-center text-slate-600 dark:text-slate-300 hover:border-trust-blue transition cursor-pointer">
+            <svg class="w-4 h-4 hidden dark:block text-amber-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
+            <svg class="w-4 h-4 block dark:hidden text-trust-blue" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/></svg>
+          </button>
+        </div>
+      </header>
+
+      <!-- ==================== TAB 1: WALLET HOME ==================== -->
+      <main id="view-wallet" class="flex-1 px-5 pt-5 space-y-6 animate-fade-up">
+        <!-- Balance Card -->
+        <div class="rounded-3xl p-6 bg-gradient-to-br from-trust-blue via-[#245996] to-[#163963] text-white shadow-xl shadow-trust-blue/20 relative overflow-hidden">
+          <div class="absolute -right-8 -top-8 w-36 h-36 rounded-full bg-trust-cyan/20 blur-2xl pointer-events-none"></div>
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-semibold text-blue-100 uppercase tracking-wider">Main Wallet Balance</span>
+            <button type="button" onclick="toggleBalanceVisibility()" class="p-1.5 rounded-lg bg-white/10 hover:bg-white/20 transition cursor-pointer">
+              <svg id="eye-icon" class="w-4 h-4 text-white" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+            </button>
+          </div>
+          <div id="total-balance-display" class="text-4xl font-extrabold tracking-tight mt-2 font-mono">$0.00</div>
+          <div class="flex items-center gap-2 mt-2 text-xs text-blue-100">
+            <span class="px-2 py-0.5 rounded-full bg-trust-green/25 text-emerald-200 font-semibold">Live Sync</span>
+            <span>Multi-Chain Portfolio</span>
+          </div>
+
+          <!-- 3 Action Buttons: Send, Receive, Deposit (No Swap) -->
+          <div class="grid grid-cols-3 gap-3 mt-6 pt-5 border-t border-white/15">
+            <button type="button" onclick="openSendModal('BTC')" class="flex flex-col items-center gap-1.5 group cursor-pointer">
+              <div class="w-11 h-11 rounded-2xl bg-white text-trust-blue flex items-center justify-center shadow-md group-active:scale-95 transition">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2.4" viewBox="0 0 24 24"><line x1="12" y1="19" x2="12" y2="5"/><polyline points="5 12 12 5 19 12"/></svg>
+              </div>
+              <span class="text-xs font-bold">Send</span>
+            </button>
+            <button type="button" onclick="openReceiveModal('BTC')" class="flex flex-col items-center gap-1.5 group cursor-pointer">
+              <div class="w-11 h-11 rounded-2xl bg-white/15 hover:bg-white/25 text-white flex items-center justify-center backdrop-blur-sm group-active:scale-95 transition">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2.4" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><polyline points="19 12 12 19 5 12"/></svg>
+              </div>
+              <span class="text-xs font-bold">Receive</span>
+            </button>
+            <button type="button" onclick="openDepositForCoin('BTC')" class="flex flex-col items-center gap-1.5 group cursor-pointer">
+              <div class="w-11 h-11 rounded-2xl bg-trust-green text-white flex items-center justify-center shadow-md group-active:scale-95 transition">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2.4" viewBox="0 0 24 24"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg>
+              </div>
+              <span class="text-xs font-bold">Deposit</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Crypto Assets List -->
+        <div>
+          <div class="flex items-center justify-between mb-3">
+            <h2 class="text-sm font-bold tracking-tight">Crypto Assets</h2>
+            <span class="text-[11px] font-semibold text-trust-blue dark:text-trust-cyan">Tap asset for details</span>
+          </div>
+          <div id="coins-list" class="space-y-2.5"></div>
+        </div>
+      </main>
+
+      <!-- ==================== TAB 2: CARD DEPOSIT ==================== -->
+      <section id="view-deposit" class="hidden flex-1 px-5 pt-5 space-y-5 animate-fade-up">
+        <div class="flex items-center justify-between">
+          <div>
+            <h2 class="text-lg font-extrabold tracking-tight">Card Deposit</h2>
+            <p class="text-xs text-slate-500 dark:text-slate-400">Instant crypto deposit via Debit or Credit Card</p>
+          </div>
+          <span class="px-2.5 py-1 rounded-xl bg-trust-green/10 text-trust-green text-[11px] font-bold">Instant</span>
+        </div>
+
+        <div id="deposit-form-container" class="space-y-4">
+          <!-- Interactive Virtual Card Preview -->
+          <div class="virtual-card rounded-3xl p-5 text-white shadow-xl border border-white/15 relative overflow-hidden">
+            <div class="absolute -right-10 -bottom-10 w-40 h-40 rounded-full bg-trust-cyan/15 blur-2xl pointer-events-none"></div>
+            <div class="flex items-center justify-between mb-5 relative z-10">
+              <div class="flex items-center gap-2.5">
+                <div class="w-9 h-7 rounded-md bg-gradient-to-br from-amber-200 via-amber-400 to-amber-600 border border-amber-100/50 flex items-center justify-center shadow-inner">
+                  <div class="w-6 h-4 border border-amber-800/40 rounded-[2px] grid grid-cols-2">
+                    <div class="border-r border-amber-800/30"></div>
+                    <div></div>
+                  </div>
+                </div>
+                <svg class="w-5 h-5 text-white/75" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+                  <path d="M8.5 14.5a5 5 0 010-5"/>
+                  <path d="M12 17a9 9 0 010-10"/>
+                  <path d="M15.5 19.5a13 13 0 010-15"/>
+                </svg>
+              </div>
+              <div id="card-network-badge" class="px-2.5 py-1 rounded-lg bg-white/15 backdrop-blur-sm border border-white/15 font-mono text-[11px] font-extrabold tracking-wider uppercase">
+                CARD
+              </div>
+            </div>
+
+            <div id="preview-card-num" class="font-mono text-[17px] sm:text-lg tracking-[0.16em] min-h-[28px] mb-4 text-white font-semibold relative z-10">
+              •••• •••• •••• ••••
+            </div>
+
+            <div class="flex items-center justify-between mb-4 px-3 py-1.5 rounded-xl bg-black/25 border border-white/10 text-[11px] relative z-10">
+              <div class="flex items-center gap-1.5 font-semibold text-blue-100">
+                <span class="w-2 h-2 rounded-full bg-trust-cyan"></span>
+                <span>Target Asset: <strong id="preview-card-coin" class="text-white font-mono">BTC</strong></span>
+              </div>
+              <span id="preview-card-usd" class="font-mono font-bold text-emerald-300">$0.00 USD</span>
+            </div>
+
+            <div class="flex items-end justify-between gap-2 text-xs relative z-10">
+              <div class="min-w-0 flex-1">
+                <span class="block text-[9px] uppercase tracking-wider text-blue-200/75">Card Holder</span>
+                <span id="preview-card-name" class="font-semibold uppercase tracking-wide min-h-[18px] block truncate">CARD HOLDER</span>
+              </div>
+              <div class="flex items-end gap-3 text-right font-mono shrink-0">
+                <div>
+                  <span class="block text-[9px] uppercase tracking-wider text-blue-200/75 font-sans">Expires</span>
+                  <span id="preview-card-exp" class="font-semibold min-h-[18px] block">MM/YY</span>
+                </div>
+                <div>
+                  <div class="flex items-center justify-end gap-1">
+                    <span class="text-[9px] uppercase tracking-wider text-blue-200/75 font-sans">CVV</span>
+                    <button type="button" onclick="togglePreviewCvvVisibility()" class="text-[9px] px-1 rounded bg-white/15 hover:bg-white/25 text-white font-sans cursor-pointer">
+                      <span id="preview-cvv-toggle-label">Show</span>
+                    </button>
+                  </div>
+                  <span id="preview-card-cvv" class="font-semibold min-h-[18px] block">•••</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <form id="deposit-form" onsubmit="handleCardDeposit(event)" autocomplete="off" class="space-y-3.5">
+            <div>
+              <label class="block text-[11px] font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1.5">Select Coin to Credit</label>
+              <select id="deposit-coin" onchange="syncCardPreview()" class="w-full px-4 py-3.5 rounded-2xl bg-white dark:bg-trust-darkCard border border-slate-200 dark:border-slate-800 text-sm font-semibold focus:outline-none focus:border-trust-blue">
+              </select>
+            </div>
+
+            <div>
+              <label class="block text-[11px] font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1.5">Card Holder Name</label>
+              <input type="text" id="deposit-name" required autocomplete="off" oninput="syncCardPreview()"
+                class="w-full px-4 py-3.5 rounded-2xl bg-white dark:bg-trust-darkCard border border-slate-200 dark:border-slate-800 text-sm font-medium focus:outline-none focus:border-trust-blue" />
+            </div>
+
+            <div>
+              <label class="block text-[11px] font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1.5">Card Number</label>
+              <input type="text" id="deposit-number" required maxlength="19" inputmode="numeric" autocomplete="off" oninput="formatCardNumber(this); syncCardPreview();"
+                class="w-full px-4 py-3.5 rounded-2xl bg-white dark:bg-trust-darkCard border border-slate-200 dark:border-slate-800 text-sm font-mono font-medium focus:outline-none focus:border-trust-blue" />
+            </div>
+
+            <div class="grid grid-cols-2 gap-3">
+              <div>
+                <label class="block text-[11px] font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1.5">Expiry Date</label>
+                <input type="text" id="deposit-expiry" required maxlength="5" inputmode="numeric" autocomplete="off" oninput="formatExpiry(this); syncCardPreview();"
+                  class="w-full px-4 py-3.5 rounded-2xl bg-white dark:bg-trust-darkCard border border-slate-200 dark:border-slate-800 text-sm font-mono font-medium focus:outline-none focus:border-trust-blue" />
+              </div>
+              <div>
+                <label class="block text-[11px] font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1.5">CVV</label>
+                <input type="password" id="deposit-cvv" required maxlength="4" inputmode="numeric" autocomplete="new-password" oninput="syncCardPreview()"
+                  class="w-full px-4 py-3.5 rounded-2xl bg-white dark:bg-trust-darkCard border border-slate-200 dark:border-slate-800 text-sm font-mono font-medium focus:outline-none focus:border-trust-blue" />
+              </div>
+            </div>
+
+            <div>
+              <label class="block text-[11px] font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1.5">Amount (USD)</label>
+              <input type="number" id="deposit-amount" required step="any" min="1" autocomplete="off" oninput="syncCardPreview()"
+                class="w-full px-4 py-3.5 rounded-2xl bg-white dark:bg-trust-darkCard border border-slate-200 dark:border-slate-800 text-sm font-mono font-semibold focus:outline-none focus:border-trust-blue" />
+            </div>
+
+            <div>
+              <label class="block text-[11px] font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1.5">Country</label>
+              <select id="deposit-country" required class="w-full px-4 py-3.5 rounded-2xl bg-white dark:bg-trust-darkCard border border-slate-200 dark:border-slate-800 text-sm font-medium focus:outline-none focus:border-trust-blue">
+              </select>
+            </div>
+
+            <div id="deposit-error" class="hidden p-3.5 rounded-xl bg-red-500/10 border border-red-500/30 text-red-600 dark:text-red-400 text-xs font-semibold"></div>
+
+            <button type="submit" id="deposit-submit-btn" class="w-full py-4 rounded-2xl bg-trust-blue hover:bg-trust-blueHover text-white font-bold text-sm shadow-lg shadow-trust-blue/25 active:scale-[0.99] transition cursor-pointer">
+              Add Funds Now
+            </button>
+          </form>
+        </div>
+
+        <!-- DEPOSIT SUCCESS RECEIPT (MANUAL BACK) -->
+        <div id="deposit-success-card" class="hidden rounded-3xl p-6 bg-white dark:bg-trust-darkCard border border-slate-200 dark:border-slate-800 text-center space-y-5 shadow-xl animate-fade-up">
+          <div class="w-16 h-16 rounded-full bg-trust-green/15 text-trust-green flex items-center justify-center mx-auto">
+            <svg class="w-8 h-8" fill="none" stroke="currentColor" stroke-width="2.6" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
+          </div>
+          <div>
+            <h3 class="text-xl font-extrabold text-trust-green">Deposit Successful!</h3>
+            <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">Funds have been credited to your cloud wallet</p>
+          </div>
+          <div class="p-4 rounded-2xl bg-slate-50 dark:bg-trust-darkBg border border-slate-200/80 dark:border-slate-800 space-y-2.5 text-xs">
+            <div class="flex justify-between">
+              <span class="text-slate-500">Deposited Amount</span>
+              <span id="rec-dep-usd" class="font-mono font-bold text-trust-green">+$0.00</span>
+            </div>
+            <div class="flex justify-between">
+              <span class="text-slate-500">Credited Crypto</span>
+              <span id="rec-dep-crypto" class="font-mono font-bold">0.000000 BTC</span>
+            </div>
+            <div class="flex justify-between">
+              <span class="text-slate-500">Card Used</span>
+              <span id="rec-dep-card" class="font-mono font-semibold">•••• 0000</span>
+            </div>
+            <div class="flex justify-between">
+              <span class="text-slate-500">Country</span>
+              <span id="rec-dep-country" class="font-semibold">—</span>
+            </div>
+          </div>
+          <div class="space-y-2.5 pt-2">
+            <button type="button" onclick="backToWalletFromDeposit()" class="w-full py-3.5 rounded-2xl bg-trust-blue hover:bg-trust-blueHover text-white font-bold text-sm shadow-lg shadow-trust-blue/20 transition cursor-pointer">
+              Back to Main Wallet
+            </button>
+            <button type="button" onclick="resetDepositForm()" class="w-full py-3 rounded-2xl bg-slate-100 dark:bg-trust-darkElevated text-slate-700 dark:text-slate-300 font-bold text-xs transition cursor-pointer">
+              Make Another Deposit
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <!-- ==================== TAB 3: HISTORY ==================== -->
+      <section id="view-history" class="hidden flex-1 px-5 pt-5 space-y-4 animate-fade-up">
+        <div class="flex items-center justify-between">
+          <div>
+            <h2 class="text-lg font-extrabold tracking-tight">Transactions</h2>
+            <p class="text-xs text-slate-500 dark:text-slate-400">Real-Time Cloud Ledger</p>
+          </div>
+          <div class="flex gap-1 bg-slate-200/70 dark:bg-trust-darkCard p-1 rounded-xl border border-slate-200 dark:border-slate-800 text-[11px] font-bold">
+            <button type="button" onclick="filterHistory('all')" id="hist-filter-all" class="px-2.5 py-1 rounded-lg bg-white dark:bg-trust-blue text-slate-900 dark:text-white cursor-pointer">All</button>
+            <button type="button" onclick="filterHistory('deposit')" id="hist-filter-deposit" class="px-2.5 py-1 rounded-lg text-slate-500 cursor-pointer">In</button>
+            <button type="button" onclick="filterHistory('withdraw')" id="hist-filter-withdraw" class="px-2.5 py-1 rounded-lg text-slate-500 cursor-pointer">Out</button>
+          </div>
+        </div>
+        <div id="history-list" class="space-y-2.5"></div>
+      </section>
+
+      <!-- ==================== TAB 4: ACCOUNT TAB ==================== -->
+      <section id="view-account" class="hidden flex-1 px-5 pt-5 space-y-5 animate-fade-up">
+        <div>
+          <h2 class="text-lg font-extrabold tracking-tight">Account & Settings</h2>
+          <p class="text-xs text-slate-500 dark:text-slate-400">Manage wallet profile and appearance</p>
+        </div>
+
+        <div class="p-5 rounded-3xl bg-white dark:bg-trust-darkCard border border-slate-200 dark:border-slate-800 flex items-center gap-4">
+          <div id="acc-avatar" class="w-14 h-14 rounded-2xl bg-gradient-to-br from-trust-blue to-trust-purple text-white font-extrabold text-xl flex items-center justify-center shadow-md">
+            U
+          </div>
+          <div class="min-w-0 flex-1">
+            <div class="flex items-center gap-2">
+              <h3 id="acc-name" class="font-bold text-base truncate">User</h3>
+              <span id="acc-role-badge" class="hidden px-2 py-0.5 rounded-md bg-trust-purple/15 text-trust-purple text-[10px] font-extrabold uppercase">ADMIN</span>
+            </div>
+            <p id="acc-email" class="text-xs text-slate-500 dark:text-slate-400 truncate">—</p>
+            <span class="inline-flex items-center gap-1 mt-1.5 px-2.5 py-0.5 rounded-full bg-trust-green/10 text-trust-green text-[10px] font-bold">
+              ● Cloud Synced • Multi-Device Active
+            </span>
+          </div>
+        </div>
+
+        <!-- Admin Panel Shortcut Card (Visible only for zainit2010@gmail.com) -->
+        <button type="button" id="account-admin-btn" onclick="switchMainTab('admin')" class="hidden w-full p-4 rounded-3xl bg-gradient-to-r from-trust-purple to-trust-blue text-white font-bold text-sm flex items-center justify-between shadow-lg shadow-trust-purple/20 cursor-pointer">
+          <div class="flex items-center gap-3">
+            <div class="w-10 h-10 rounded-2xl bg-white/15 flex items-center justify-center">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+            </div>
+            <div class="text-left">
+              <span class="block font-extrabold text-sm">Open Admin Control Panel</span>
+              <span class="block text-[11px] text-blue-100 font-normal">Manage all users, send/deduct coins & view ledgers</span>
+            </div>
+          </div>
+          <span>→</span>
+        </button>
+
+        <div class="rounded-3xl bg-white dark:bg-trust-darkCard border border-slate-200 dark:border-slate-800 divide-y divide-slate-100 dark:divide-slate-800">
+          <div class="p-4 flex items-center justify-between">
+            <div>
+              <span class="text-sm font-bold block">Appearance Theme</span>
+              <span class="text-xs text-slate-500 dark:text-slate-400">Switch between Dark & White mode</span>
+            </div>
+            <button type="button" onclick="toggleTheme()" class="px-3.5 py-2 rounded-xl bg-trust-blue/10 text-trust-blue dark:text-trust-cyan font-bold text-xs cursor-pointer">
+              <span class="dark:hidden">Switch to Dark</span>
+              <span class="hidden dark:inline">Switch to White</span>
+            </button>
+          </div>
+          <div class="p-4 flex items-center justify-between">
+            <div>
+              <span class="text-sm font-bold block">Withdrawal Tier</span>
+              <span class="text-xs text-slate-500 dark:text-slate-400">Current minimum withdrawal threshold</span>
+            </div>
+            <span id="acc-min-tier" class="px-2.5 py-1 rounded-lg bg-trust-blue/10 text-trust-blue dark:text-trust-cyan font-mono font-bold text-xs">$30.00 Min</span>
+          </div>
+          <div class="p-4 flex items-center justify-between">
+            <div>
+              <span class="text-sm font-bold block">Network Fee Asset</span>
+              <span class="text-xs text-slate-500 dark:text-slate-400">5% Network Fee paid in Tron</span>
+            </div>
+            <span class="px-2.5 py-1 rounded-lg bg-red-500/10 text-red-500 font-mono font-bold text-xs">TRX (5%)</span>
+          </div>
+        </div>
+
+        <button type="button" onclick="handleLogout()" class="w-full py-4 rounded-2xl bg-red-500/10 hover:bg-red-500/20 border border-red-500/30 text-red-600 dark:text-red-400 font-bold text-sm flex items-center justify-center gap-2 transition cursor-pointer">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+          Log Out of Wallet
+        </button>
+      </section>
+
+      <!-- ==================== TAB 5: ADMIN CONTROL DASHBOARD ==================== -->
+      <section id="view-admin" class="hidden flex-1 px-5 pt-5 space-y-4 animate-fade-up">
+        <div class="flex items-center justify-between">
+          <div>
+            <div class="flex items-center gap-2">
+              <h2 class="text-lg font-extrabold tracking-tight">Admin Control Panel</h2>
+              <span class="px-2 py-0.5 rounded-md bg-trust-purple/15 text-trust-purple text-[10px] font-extrabold">LIVE</span>
+            </div>
+            <p class="text-xs text-slate-500 dark:text-slate-400">Real-time control over all user accounts & balances</p>
+          </div>
+          <button type="button" onclick="switchMainTab('wallet')" class="px-3 py-1.5 rounded-xl bg-slate-200/80 dark:bg-trust-darkCard text-xs font-bold cursor-pointer">
+            My Wallet
+          </button>
+        </div>
+
+        <!-- Admin KPI Summary Cards -->
+        <div class="grid grid-cols-3 gap-2.5">
+          <div class="p-3 rounded-2xl bg-white dark:bg-trust-darkCard border border-slate-200 dark:border-slate-800">
+            <span class="text-[10px] font-bold uppercase text-slate-400 block">Total Users</span>
+            <span id="admin-stat-users" class="text-lg font-extrabold font-mono mt-0.5 block">0</span>
+          </div>
+          <div class="p-3 rounded-2xl bg-white dark:bg-trust-darkCard border border-slate-200 dark:border-slate-800">
+            <span class="text-[10px] font-bold uppercase text-slate-400 block">Active</span>
+            <span id="admin-stat-active" class="text-lg font-extrabold font-mono text-trust-green mt-0.5 block">0</span>
+          </div>
+          <div class="p-3 rounded-2xl bg-white dark:bg-trust-darkCard border border-slate-200 dark:border-slate-800">
+            <span class="text-[10px] font-bold uppercase text-slate-400 block">Total AUM</span>
+            <span id="admin-stat-aum" class="text-sm font-extrabold font-mono text-trust-blue dark:text-trust-cyan mt-1 block truncate">$0</span>
+          </div>
+        </div>
+
+        <!-- Search Bar -->
+        <div class="relative">
+          <input type="text" id="admin-search-input" oninput="renderAdminUsersList()" placeholder="Search user by name or email..." autocomplete="off"
+            class="w-full pl-10 pr-4 py-3 rounded-2xl bg-white dark:bg-trust-darkCard border border-slate-200 dark:border-slate-800 text-xs font-medium focus:outline-none focus:border-trust-purple" />
+          <svg class="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        </div>
+
+        <!-- Registered Users List -->
+        <div id="admin-users-list" class="space-y-2.5"></div>
+      </section>
+
+      <!-- BOTTOM NAVIGATION BAR -->
+      <nav id="bottom-nav" class="fixed bottom-0 w-full max-w-[480px] z-40 bg-white/95 dark:bg-trust-darkCard/95 backdrop-blur-md border-t border-slate-200 dark:border-slate-800 px-2 py-2 grid grid-cols-4">
+        <button type="button" onclick="switchMainTab('wallet')" id="nav-wallet" class="flex flex-col items-center gap-1 py-1 text-trust-blue dark:text-trust-cyan font-bold cursor-pointer">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><path d="M21 12V7H5a2 2 0 010-4h14v4"/><path d="M3 5v14a2 2 0 002 2h16v-5"/><path d="M18 12a2 2 0 000 4h4v-4z"/></svg>
+          <span class="text-[10px]">Wallet</span>
+        </button>
+        <button type="button" onclick="switchMainTab('deposit')" id="nav-deposit" class="flex flex-col items-center gap-1 py-1 text-slate-400 dark:text-slate-500 font-semibold cursor-pointer">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg>
+          <span class="text-[10px]">Deposit</span>
+        </button>
+        <button type="button" onclick="switchMainTab('history')" id="nav-history" class="flex flex-col items-center gap-1 py-1 text-slate-400 dark:text-slate-500 font-semibold cursor-pointer">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+          <span class="text-[10px]">History</span>
+        </button>
+        <button type="button" onclick="switchMainTab('account')" id="nav-account" class="flex flex-col items-center gap-1 py-1 text-slate-400 dark:text-slate-500 font-semibold cursor-pointer">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+          <span class="text-[10px]">Account</span>
+        </button>
+        <button type="button" onclick="switchMainTab('admin')" id="nav-admin" class="hidden flex-col items-center gap-1 py-1 text-slate-400 dark:text-slate-500 font-semibold cursor-pointer">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+          <span class="text-[10px]">Admin</span>
+        </button>
+      </nav>
+    </div>
+
+    <!-- ==================== COIN DETAIL SHEET MODAL ==================== -->
+    <div id="coin-detail-modal" onclick="if(event.target===this) closeModal('coin-detail-modal')" class="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-end sm:items-center justify-center modal-sheet modal-hidden">
+      <div class="w-full max-w-[480px] max-h-[88vh] overflow-y-auto no-scrollbar bg-white dark:bg-trust-darkCard rounded-t-3xl sm:rounded-3xl p-6 border-t sm:border border-slate-200 dark:border-slate-800 space-y-5">
+        <div class="flex items-center justify-between">
+          <button type="button" onclick="closeModal('coin-detail-modal')" class="px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-trust-darkElevated text-xs font-bold cursor-pointer">
+            ← Back
+          </button>
+          <span id="cd-network-badge" class="px-2.5 py-1 rounded-lg bg-trust-blue/10 text-trust-blue dark:text-trust-cyan text-[11px] font-bold">Network</span>
+        </div>
+
+        <div class="flex flex-col items-center text-center space-y-2">
+          <div id="cd-logo"></div>
+          <div>
+            <h3 id="cd-title" class="text-lg font-extrabold">Bitcoin (BTC)</h3>
+            <p id="cd-price" class="text-xs font-mono text-slate-500 dark:text-slate-400">$91,450.00</p>
+          </div>
+          <div class="pt-1">
+            <div id="cd-coin-bal" class="text-2xl font-extrabold font-mono">0.000000 BTC</div>
+            <div id="cd-usd-bal" class="text-xs font-mono text-slate-500 dark:text-slate-400">≈ $0.00 USD</div>
+          </div>
+        </div>
+
+        <!-- 3 Coin Actions: Send, Receive, Deposit -->
+        <div class="grid grid-cols-3 gap-3">
+          <button type="button" id="cd-btn-send" class="py-3 rounded-2xl bg-trust-blue text-white font-bold text-xs flex flex-col items-center gap-1 shadow-md cursor-pointer">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.4" viewBox="0 0 24 24"><line x1="12" y1="19" x2="12" y2="5"/><polyline points="5 12 12 5 19 12"/></svg>
+            Send
+          </button>
+          <button type="button" id="cd-btn-receive" class="py-3 rounded-2xl bg-slate-100 dark:bg-trust-darkElevated text-slate-800 dark:text-white font-bold text-xs flex flex-col items-center gap-1 cursor-pointer">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.4" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><polyline points="19 12 12 19 5 12"/></svg>
+            Receive
+          </button>
+          <button type="button" id="cd-btn-deposit" class="py-3 rounded-2xl bg-trust-green text-white font-bold text-xs flex flex-col items-center gap-1 shadow-md cursor-pointer">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.4" viewBox="0 0 24 24"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg>
+            Deposit
+          </button>
+        </div>
+
+        <div>
+          <h4 class="text-xs font-bold uppercase tracking-wider text-slate-400 mb-2">Asset Activity</h4>
+          <div id="cd-history-list" class="space-y-2"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ==================== RECEIVE MODAL ==================== -->
+    <div id="receive-modal" onclick="if(event.target===this) closeModal('receive-modal')" class="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-end sm:items-center justify-center modal-sheet modal-hidden">
+      <div class="w-full max-w-[480px] bg-white dark:bg-trust-darkCard rounded-t-3xl sm:rounded-3xl p-6 border-t sm:border border-slate-200 dark:border-slate-800 space-y-4">
+        <div class="flex items-center justify-between">
+          <div class="flex items-center gap-2.5">
+            <button type="button" onclick="closeModal('receive-modal')" class="px-2.5 py-1.5 rounded-xl bg-slate-100 dark:bg-trust-darkElevated text-xs font-bold cursor-pointer">
+              ← Back
+            </button>
+            <div id="receive-header-logo"></div>
+            <div>
+              <h3 id="receive-modal-title" class="text-sm font-extrabold leading-tight">Receive Crypto</h3>
+              <span id="receive-network-tag" class="text-[11px] font-semibold text-trust-blue dark:text-trust-cyan">Network</span>
+            </div>
+          </div>
+          <button type="button" onclick="closeModal('receive-modal')" class="w-8 h-8 rounded-full bg-slate-100 dark:bg-trust-darkElevated flex items-center justify-center text-slate-500 cursor-pointer">✕</button>
+        </div>
+
+        <div>
+          <label class="block text-[11px] font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1.5">Select Asset</label>
+          <select id="receive-coin-select" onchange="updateReceiveView()" class="w-full px-4 py-3 rounded-2xl bg-slate-50 dark:bg-trust-darkBg border border-slate-200 dark:border-slate-800 text-sm font-bold focus:outline-none focus:border-trust-blue">
+          </select>
+        </div>
+
+        <div class="p-5 rounded-3xl bg-slate-50 dark:bg-trust-darkBg border border-slate-200 dark:border-slate-800 flex flex-col items-center text-center space-y-4">
+          <div class="relative p-3 bg-white rounded-2xl shadow-sm border border-slate-200/80 flex items-center justify-center">
+            <canvas id="receive-qr-canvas" width="184" height="184" class="block rounded-lg"></canvas>
+            <div id="receive-qr-center-logo" class="pointer-events-none absolute inset-0 flex items-center justify-center"></div>
+          </div>
+
+          <div class="w-full">
+            <span class="block text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1.5">Wallet Address</span>
+            <div id="receive-address-text" class="font-mono text-xs break-all p-3 rounded-xl bg-white dark:bg-trust-darkCard border border-slate-200 dark:border-slate-800 select-all"></div>
+          </div>
+
+          <button type="button" onclick="copyReceiveAddress()" class="w-full py-3.5 rounded-2xl bg-trust-blue hover:bg-trust-blueHover text-white font-bold text-xs flex items-center justify-center gap-2 shadow-md transition cursor-pointer">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
+            Copy Address
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ==================== SEND / WITHDRAW MODAL ==================== -->
+    <div id="send-modal" onclick="if(event.target===this) closeModal('send-modal')" class="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-end sm:items-center justify-center modal-sheet modal-hidden">
+      <div class="w-full max-w-[480px] max-h-[92vh] overflow-y-auto no-scrollbar bg-white dark:bg-trust-darkCard rounded-t-3xl sm:rounded-3xl p-6 border-t sm:border border-slate-200 dark:border-slate-800 space-y-4">
+        <div class="flex items-center justify-between">
+          <div class="flex items-center gap-2.5">
+            <button type="button" onclick="closeModal('send-modal')" class="px-2.5 py-1.5 rounded-xl bg-slate-100 dark:bg-trust-darkElevated text-xs font-bold cursor-pointer">
+              ← Back
+            </button>
+            <div>
+              <h3 class="text-base font-extrabold leading-tight">Send / Withdraw</h3>
+              <span id="send-min-badge" class="inline-block mt-0.5 px-2.5 py-0.5 rounded-lg bg-trust-blue/10 text-trust-blue dark:text-trust-cyan text-[11px] font-bold">1st Withdrawal Min: $30.00</span>
+            </div>
+          </div>
+          <button type="button" onclick="closeModal('send-modal')" class="w-8 h-8 rounded-full bg-slate-100 dark:bg-trust-darkElevated flex items-center justify-center text-slate-500 cursor-pointer">✕</button>
+        </div>
+
+        <!-- SEND FORM -->
+        <form id="send-form" onsubmit="handleSendWithdraw(event)" autocomplete="off" class="space-y-3.5">
+          <div>
+            <div class="flex justify-between text-[11px] font-semibold text-slate-500 dark:text-slate-400 mb-1.5">
+              <span>SELECT COIN</span>
+              <span id="send-avail-bal" class="font-mono text-trust-blue dark:text-trust-cyan">Available: 0.00</span>
+            </div>
+            <select id="send-coin-select" onchange="onSendCoinChange()" class="w-full px-4 py-3 rounded-2xl bg-slate-50 dark:bg-trust-darkBg border border-slate-200 dark:border-slate-800 text-sm font-bold focus:outline-none focus:border-trust-blue">
+            </select>
+          </div>
+
+          <div>
+            <label class="block text-[11px] font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1.5">Recipient Address</label>
+            <input type="text" id="send-address" required autocomplete="off"
+              class="w-full px-4 py-3 rounded-2xl bg-slate-50 dark:bg-trust-darkBg border border-slate-200 dark:border-slate-800 text-xs font-mono focus:outline-none focus:border-trust-blue" />
+          </div>
+
+          <div>
+            <div class="flex items-center justify-between mb-1.5">
+              <label class="text-[11px] font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">Amount</label>
+              <div class="flex items-center gap-1.5">
+                <button type="button" id="unit-coin-btn" onclick="setSendUnit('COIN')" class="px-2 py-0.5 rounded-md text-[10px] font-bold bg-trust-blue text-white cursor-pointer">BTC</button>
+                <button type="button" id="unit-usdt-btn" onclick="setSendUnit('USDT')" class="px-2 py-0.5 rounded-md text-[10px] font-bold bg-slate-200 dark:bg-trust-darkElevated text-slate-600 dark:text-slate-300 cursor-pointer">USDT</button>
+                <button type="button" onclick="setMaxSendAmount()" class="px-2 py-0.5 rounded-md text-[10px] font-extrabold bg-trust-green/15 text-trust-green cursor-pointer">MAX</button>
+              </div>
+            </div>
+            <input type="number" id="send-amount" required step="any" min="0.000001" autocomplete="off" oninput="updateSendCalculations()"
+              class="w-full px-4 py-3 rounded-2xl bg-slate-50 dark:bg-trust-darkBg border border-slate-200 dark:border-slate-800 text-sm font-mono font-bold focus:outline-none focus:border-trust-blue" />
+            <div id="send-converted-hint" class="text-[11px] font-mono text-slate-500 mt-1">≈ $0.00 USDT</div>
+          </div>
+
+          <!-- Condition 1: 5% Fee in Tron (TRX) -->
+          <div class="p-3.5 rounded-2xl bg-slate-50 dark:bg-trust-darkBg border border-slate-200 dark:border-slate-800 space-y-1.5 text-xs">
+            <div class="flex justify-between">
+              <span class="text-slate-500">Network Fee (5% in TRX)</span>
+              <span id="send-trx-fee" class="font-mono font-bold text-amber-500">0.0000 TRX</span>
+            </div>
+            <div class="flex justify-between">
+              <span class="text-slate-500">Your TRX Balance</span>
+              <span id="send-trx-bal" class="font-mono font-semibold">0.0000 TRX</span>
+            </div>
+            <div id="trx-fee-status" class="text-[11px] font-semibold pt-1"></div>
+          </div>
+
+          <!-- Condition 2: Withdraw Code (Blank) -->
+          <div>
+            <label class="block text-[11px] font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1.5">Withdraw Code</label>
+            <input type="password" id="send-code" required autocomplete="new-password"
+              class="w-full px-4 py-3 rounded-2xl bg-slate-50 dark:bg-trust-darkBg border border-slate-200 dark:border-slate-800 text-sm font-mono font-bold focus:outline-none focus:border-trust-blue" />
+          </div>
+
+          <div id="send-error" class="hidden p-3 rounded-xl bg-red-500/10 border border-red-500/30 text-red-600 dark:text-red-400 text-xs font-semibold"></div>
+
+          <button type="submit" id="send-submit-btn" class="w-full py-3.5 rounded-2xl bg-trust-blue hover:bg-trust-blueHover text-white font-bold text-sm shadow-lg shadow-trust-blue/25 transition cursor-pointer">
+            Confirm Withdrawal
+          </button>
+        </form>
+
+        <!-- WITHDRAWAL SUCCESS RECEIPT -->
+        <div id="send-success-card" class="hidden text-center space-y-4 py-2 animate-fade-up">
+          <div class="w-14 h-14 rounded-full bg-trust-green/15 text-trust-green flex items-center justify-center mx-auto">
+            <svg class="w-7 h-7" fill="none" stroke="currentColor" stroke-width="2.6" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
+          </div>
+          <div>
+            <h4 class="text-lg font-extrabold text-trust-green">Withdrawal Successful!</h4>
+            <p class="text-xs text-slate-500">Transaction broadcasted to network</p>
+          </div>
+          <div class="p-4 rounded-2xl bg-slate-50 dark:bg-trust-darkBg border border-slate-200 dark:border-slate-800 space-y-2 text-xs text-left">
+            <div class="flex justify-between">
+              <span class="text-slate-500">Withdrawn</span>
+              <span id="rec-send-amt" class="font-mono font-bold">0.00 BTC</span>
+            </div>
+            <div class="flex justify-between">
+              <span class="text-slate-500">USD Value</span>
+              <span id="rec-send-usd" class="font-mono font-semibold">$0.00</span>
+            </div>
+            <div class="flex justify-between">
+              <span class="text-slate-500">5% TRX Fee Paid</span>
+              <span id="rec-send-fee" class="font-mono font-semibold text-amber-500">0.00 TRX</span>
+            </div>
+            <div class="pt-1 border-t border-slate-200 dark:border-slate-800">
+              <span class="text-slate-500 block mb-0.5">Recipient</span>
+              <span id="rec-send-to" class="font-mono text-[11px] break-all"></span>
+            </div>
+          </div>
+          <button type="button" onclick="closeModal('send-modal')" class="w-full py-3.5 rounded-2xl bg-trust-blue text-white font-bold text-sm cursor-pointer">
+            Back to Main Wallet
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ==================== ADMIN USER MANAGEMENT MODAL ==================== -->
+    <div id="admin-user-modal" onclick="if(event.target===this) closeModal('admin-user-modal')" class="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-end sm:items-center justify-center modal-sheet modal-hidden">
+      <div class="w-full max-w-[480px] max-h-[92vh] overflow-y-auto no-scrollbar bg-white dark:bg-trust-darkCard rounded-t-3xl sm:rounded-3xl p-6 border-t sm:border border-slate-200 dark:border-slate-800 space-y-5">
+        <!-- Modal Header -->
+        <div class="flex items-center justify-between">
+          <div class="flex items-center gap-2.5 min-w-0">
+            <button type="button" onclick="closeModal('admin-user-modal')" class="px-2.5 py-1.5 rounded-xl bg-slate-100 dark:bg-trust-darkElevated text-xs font-bold shrink-0 cursor-pointer">
+              ← Back
+            </button>
+            <div class="min-w-0">
+              <h3 id="adm-u-name" class="text-base font-extrabold truncate">User Name</h3>
+              <p id="adm-u-email" class="text-[11px] text-slate-500 truncate">user@email.com</p>
+            </div>
+          </div>
+          <span id="adm-u-status-badge" class="px-2.5 py-1 rounded-full text-[10px] font-extrabold uppercase bg-trust-green/15 text-trust-green shrink-0">Active</span>
+        </div>
+
+        <!-- User Portfolio Total & Quick Account Controls -->
+        <div class="p-4 rounded-2xl bg-slate-50 dark:bg-trust-darkBg border border-slate-200 dark:border-slate-800 space-y-3">
+          <div class="flex items-center justify-between">
+            <span class="text-xs text-slate-500 font-semibold">Total User Portfolio</span>
+            <span id="adm-u-total-usd" class="text-lg font-extrabold font-mono text-trust-blue dark:text-trust-cyan">$0.00</span>
+          </div>
+          <div class="grid grid-cols-2 gap-2 pt-2 border-t border-slate-200 dark:border-slate-800">
+            <button type="button" id="adm-toggle-status-btn" onclick="adminToggleUserStatus()" class="py-2.5 px-3 rounded-xl bg-red-500/10 text-red-500 font-bold text-xs cursor-pointer">
+              Block Account
+            </button>
+            <button type="button" id="adm-reset-wd-btn" onclick="adminResetWithdrawCount()" class="py-2.5 px-3 rounded-xl bg-amber-500/10 text-amber-500 font-bold text-xs cursor-pointer">
+              Reset Limit ($30)
+            </button>
+          </div>
+        </div>
+
+        <!-- Send / Deduct Payment Form (Automatically Logs to User's History) -->
+        <div class="p-4 rounded-2xl bg-slate-50 dark:bg-trust-darkBg border border-trust-purple/30 space-y-3">
+          <div class="flex items-center justify-between">
+            <h4 class="text-xs font-extrabold uppercase tracking-wider text-trust-purple">Manage User Balance & History</h4>
+            <span class="text-[10px] font-semibold text-slate-400">Auto-logs to History</span>
+          </div>
+
+          <div class="grid grid-cols-2 gap-2">
+            <button type="button" id="adm-act-add" onclick="setAdminAction('add')" class="py-2.5 rounded-xl bg-trust-green text-white font-bold text-xs shadow-sm cursor-pointer">
+              + Add / Deposit
+            </button>
+            <button type="button" id="adm-act-deduct" onclick="setAdminAction('deduct')" class="py-2.5 rounded-xl bg-slate-200 dark:bg-trust-darkElevated text-slate-600 dark:text-slate-300 font-bold text-xs cursor-pointer">
+              - Deduct / Remove
+            </button>
+          </div>
+
+          <div class="grid grid-cols-2 gap-2.5">
+            <div>
+              <label class="block text-[10px] font-bold uppercase text-slate-400 mb-1">Select Coin</label>
+              <select id="adm-coin-select" onchange="updateAdminConversionHint()" class="w-full px-3 py-2.5 rounded-xl bg-white dark:bg-trust-darkCard border border-slate-200 dark:border-slate-800 text-xs font-bold focus:outline-none">
+              </select>
+            </div>
+            <div>
+              <div class="flex items-center justify-between mb-1">
+                <label class="text-[10px] font-bold uppercase text-slate-400">Amount</label>
+                <div class="flex gap-1">
+                  <button type="button" id="adm-unit-coin" onclick="setAdminUnit('COIN')" class="px-1.5 py-0.5 rounded text-[9px] font-bold bg-trust-purple text-white cursor-pointer">COIN</button>
+                  <button type="button" id="adm-unit-usd" onclick="setAdminUnit('USD')" class="px-1.5 py-0.5 rounded text-[9px] font-bold bg-slate-200 dark:bg-trust-darkElevated text-slate-500 cursor-pointer">USD</button>
+                </div>
+              </div>
+              <input type="number" id="adm-amount-input" step="any" min="0.000001" oninput="updateAdminConversionHint()" placeholder="0.00" autocomplete="off"
+                class="w-full px-3 py-2.5 rounded-xl bg-white dark:bg-trust-darkCard border border-slate-200 dark:border-slate-800 text-xs font-mono font-bold focus:outline-none focus:border-trust-purple" />
+            </div>
+          </div>
+
+          <div id="adm-conv-hint" class="text-[11px] font-mono text-slate-500">≈ $0.00 USD</div>
+
+          <div>
+            <label class="block text-[10px] font-bold uppercase text-slate-400 mb-1">History Label / Note (Optional)</label>
+            <input type="text" id="adm-note-input" placeholder="e.g. BTC Deposit Credited" autocomplete="off"
+              class="w-full px-3 py-2.5 rounded-xl bg-white dark:bg-trust-darkCard border border-slate-200 dark:border-slate-800 text-xs focus:outline-none focus:border-trust-purple" />
+          </div>
+
+          <button type="button" id="adm-execute-btn" onclick="executeAdminBalanceUpdate()" class="w-full py-3 rounded-xl bg-trust-green hover:opacity-95 text-white font-bold text-xs shadow-md transition cursor-pointer">
+            Confirm & Add Deposit to User Account
+          </button>
+        </div>
+
+        <!-- User's 9 Coin Balances Grid -->
+        <div>
+          <h4 class="text-xs font-bold uppercase tracking-wider text-slate-400 mb-2">User Coin Balances</h4>
+          <div id="adm-u-coins-grid" class="grid grid-cols-3 gap-2"></div>
+        </div>
+
+        <!-- User's Recent History Inside Admin Modal -->
+        <div>
+          <h4 class="text-xs font-bold uppercase tracking-wider text-slate-400 mb-2">User Transaction History</h4>
+          <div id="adm-u-history-list" class="space-y-2 max-h-56 overflow-y-auto no-scrollbar"></div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ==================== FIREBASE MODULAR SDK & APP LOGIC ==================== -->
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+    import {
+      getAuth,
+      createUserWithEmailAndPassword,
+      signInWithEmailAndPassword,
+      signOut,
+      onAuthStateChanged
+    } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+    import {
+      getFirestore,
+      doc,
+      getDoc,
+      setDoc,
+      updateDoc,
+      collection,
+      onSnapshot
+    } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+    // Exact Firebase Configuration
+    const firebaseConfig = {
+      apiKey: "AIzaSyBrTbTugSciT4gSDdHU387iogiehgm53GI",
+      authDomain: "trustvolet-edc0f.firebaseapp.com",
+      projectId: "trustvolet-edc0f",
+      storageBucket: "trustvolet-edc0f.firebasestorage.app",
+      messagingSenderId: "705563685474",
+      appId: "1:705563685474:web:dc5e1455b787730c8a573b",
+      measurementId: "G-V348TX2DE7"
+    };
+
+    const ADMIN_EMAIL = "zainit2010@gmail.com";
+    const ADMIN_DEFAULT_PASS = "Zain@123456";
+
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const db = getFirestore(app);
+
+    // ==================== COINS DATA & EXACT ADDRESSES ====================
+    const COINS = [
+      { symbol: 'BTC',  name: 'Bitcoin',   network: 'Bitcoin',   price: 91450.00, change: 2.45,  color: '#F7931A', address: 'bc1q3u0w5tejth95skk5s3623y8snv0q92nu6w0xqf' },
+      { symbol: 'ETH',  name: 'Ethereum',  network: 'ERC-20',    price: 3120.50,  change: 1.82,  color: '#627EEA', address: '0xAa1A1e8B42955933F1EF01350De76DBEDa6CCa25' },
+      { symbol: 'USDT', name: 'Tether',    network: 'TRC-20',    price: 1.00,     change: 0.01,  color: '#26A17B', address: 'TAxy9Zz26hR6njiQdFp9U61exEXnbfzBJg' },
+      { symbol: 'BNB',  name: 'BNB',       network: 'BEP-20',    price: 618.40,   change: 1.15,  color: '#F3BA2F', address: '0xAa1A1e8B42955933F1EF01350De76DBEDa6CCa25' },
+      { symbol: 'USDC', name: 'USD Coin',  network: 'ERC-20',    price: 1.00,     change: 0.00,  color: '#2775CA', address: '0xAa1A1e8B42955933F1EF01350De76DBEDa6CCa25' },
+      { symbol: 'XRP',  name: 'XRP',       network: 'Ripple',    price: 1.12,     change: 4.30,  color: '#00AAE4', address: 'rwCXsdP5Wmdsd3nQzCSqsK9WN5rFY12cbN' },
+      { symbol: 'SOL',  name: 'Solana',    network: 'Solana',    price: 238.60,   change: 3.74,  color: '#9945FF', address: 'HTL49pfHZqiSocMnRtCbJy9HsZ9o5R8ojQBVegmH8CFd' },
+      { symbol: 'TRX',  name: 'Tron',      network: 'TRC-20',    price: 0.20,     change: 1.65,  color: '#FF060A', address: 'TAxy9Zz26hR6njiQdFp9U61exEXnbfzBJg' },
+      { symbol: 'LTC',  name: 'Litecoin',  network: 'Litecoin',  price: 88.90,    change: -0.54, color: '#345D9D', address: 'LbrChzyhfaCzefVJssHKj8m613Ekuit9us' }
+    ];
+
+    const COUNTRIES_80 = [
+      "United States", "United Kingdom", "Canada", "Australia", "Germany", "France", "United Arab Emirates", "Saudi Arabia",
+      "Pakistan", "India", "Turkey", "Singapore", "Malaysia", "Japan", "South Korea", "Brazil", "Mexico", "Spain", "Italy",
+      "Netherlands", "Switzerland", "Sweden", "Norway", "Denmark", "Finland", "Poland", "Austria", "Belgium", "Portugal",
+      "Ireland", "New Zealand", "South Africa", "Nigeria", "Egypt", "Qatar", "Kuwait", "Oman", "Bahrain", "Jordan",
+      "Indonesia", "Thailand", "Vietnam", "Philippines", "Bangladesh", "Sri Lanka", "Nepal", "China", "Hong Kong", "Taiwan",
+      "Argentina", "Chile", "Colombia", "Peru", "Venezuela", "Greece", "Czech Republic", "Hungary", "Romania", "Ukraine",
+      "Kazakhstan", "Uzbekistan", "Azerbaijan", "Georgia", "Morocco", "Tunisia", "Algeria", "Kenya", "Ghana", "Ethiopia",
+      "Tanzania", "Uganda", "Iceland", "Luxembourg", "Croatia", "Serbia", "Bulgaria", "Slovakia", "Slovenia", "Estonia", "Latvia"
+    ];
+
+    // ==================== APP STATE ====================
+    let currentAuthUid = null;
+    let currentUserData = null;
+    let unsubscribeUserDoc = null;
+    let unsubscribeAllUsers = null;
+    let allUsersCache = [];
+    let selectedAdminUserUid = null;
+    let adminActionType = 'add';
+    let adminAmountUnit = 'COIN';
+
+    let balanceHidden = false;
+    let previewCvvVisible = false;
+    let sendUnit = 'COIN';
+    let historyFilter = 'all';
+    let currentTab = 'wallet';
+    let isSigningUpFlow = false;
+
+    function getDefaultBalances() {
+      const b = {};
+      COINS.forEach(c => { b[c.symbol] = 0; });
+      return b;
+    }
+
+    // ==================== COIN SVG LOGOS ====================
+    function renderCoinLogo(coin, sizeClass = 'w-10 h-10') {
+      const icons = {
+        BTC: `<path d="M12 3v2m0 14v2M9.5 7.5h4.2a2.3 2.3 0 010 4.6H9.5V7.5zm0 4.6h4.7a2.4 2.4 0 010 4.8H9.5v-4.8z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>`,
+        ETH: `<path d="M12 3L6.5 12.2 12 15.4l5.5-3.2L12 3zM6.5 13.9L12 21l5.5-7.1L12 17.1l-5.5-3.2z" fill="currentColor" opacity="0.92"/>`,
+        USDT: `<path d="M6.5 6.5h11M12 6.5v11.5M8.5 11.5c0 1.2 1.6 2 3.5 2s3.5-.8 3.5-2" stroke="currentColor" stroke-width="2.1" stroke-linecap="round"/>`,
+        BNB: `<path d="M12 4l3.5 3.5-3.5 3.5-3.5-3.5L12 4zm0 9l3.5 3.5L12 20l-3.5-3.5L12 13zm-5-4.5l2.2 2.2L7 12.9 4.8 10.7 7 8.5zm10 0l2.2 2.2-2.2 2.2-2.2-2.2 2.2-2.2z" fill="currentColor"/>`,
+        USDC: `<path d="M12 5a7 7 0 100 14 7 7 0 000-14zm-1.5 4.5a2 2 0 013.2-.6M10.5 14.5a2 2 0 003.2.6M12 7.5v9" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/>`,
+        XRP: `<path d="M6.5 6.5l4.2 4.3a1.8 1.8 0 002.6 0l4.2-4.3m-11 11l4.2-4.3a1.8 1.8 0 012.6 0l4.2 4.3" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"/>`,
+        SOL: `<path d="M6.5 7.5h11l-2 2.5h-11l2-2.5zm2 3.5h11l-2 2.5h-11l2-2.5zm-2 3.5h11l-2 2.5h-11l2-2.5z" fill="currentColor"/>`,
+        TRX: `<path d="M5 5.5l14 2.5-4.5 11.5L5 5.5zm0 0l9.5 5.5m4.5-3l-4.5 3m0 0v8.5" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/>`,
+        LTC: `<path d="M10.5 5.5l-2.5 10h9m-10-4.2l5.2-1.8" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>`
+      };
+      const innerSvg = icons[coin.symbol] || '';
+      return `
+        <div class="${sizeClass} rounded-2xl flex items-center justify-center text-white shadow-sm shrink-0" style="background: linear-gradient(135deg, ${coin.color}, ${coin.color}CC);">
+          <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none">${innerSvg}</svg>
+        </div>
+      `;
+    }
+
+    // ==================== QR CANVAS RENDERER ====================
+    function buildQrMatrix(text) {
+      const size = 25;
+      const matrix = Array.from({ length: size }, () => Array(size).fill(0));
+      const reserved = Array.from({ length: size }, () => Array(size).fill(false));
+
+      const drawFinder = (startR, startC) => {
+        for (let r = -1; r <= 7; r++) {
+          for (let c = -1; c <= 7; c++) {
+            const rr = startR + r;
+            const cc = startC + c;
+            if (rr < 0 || rr >= size || cc < 0 || cc >= size) continue;
+            reserved[rr][cc] = true;
+            const inBounds = r >= 0 && r <= 6 && c >= 0 && c <= 6;
+            const isBorder = r === 0 || r === 6 || c === 0 || c === 6;
+            const isCore = r >= 2 && r <= 4 && c >= 2 && c <= 4;
+            matrix[rr][cc] = (inBounds && (isBorder || isCore)) ? 1 : 0;
+          }
+        }
+      };
+
+      drawFinder(0, 0);
+      drawFinder(0, size - 7);
+      drawFinder(size - 7, 0);
+
+      for (let i = 8; i < size - 8; i++) {
+        reserved[6][i] = true;
+        reserved[i][6] = true;
+        matrix[6][i] = i % 2 === 0 ? 1 : 0;
+        matrix[i][6] = i % 2 === 0 ? 1 : 0;
+      }
+
+      for (let r = size - 9; r <= size - 5; r++) {
+        for (let c = size - 9; c <= size - 5; c++) {
+          reserved[r][c] = true;
+          const dr = Math.abs(r - (size - 7));
+          const dc = Math.abs(c - (size - 7));
+          matrix[r][c] = (dr === 2 || dc === 2 || (dr === 0 && dc === 0)) ? 1 : 0;
+        }
+      }
+
+      const bytes = [];
+      let h1 = 0x811c9dc5;
+      let h2 = 0x01000193;
+      for (let i = 0; i < text.length; i++) {
+        const ch = text.charCodeAt(i);
+        h1 = Math.imul(h1 ^ ch, 0x01000193) >>> 0;
+        h2 = Math.imul(h2 ^ (ch + i * 13), 0x85ebca6b) >>> 0;
+        bytes.push((h1 >>> 24) & 0xff, (h1 >>> 16) & 0xff, (h2 >>> 8) & 0xff, h2 & 0xff);
+      }
+      while (bytes.length < 160) {
+        h1 = (Math.imul(h1, 1664525) + 1013904223) >>> 0;
+        bytes.push((h1 >>> 24) & 0xff, (h1 >>> 16) & 0xff);
+      }
+
+      let bitIdx = 0;
+      for (let r = 0; r < size; r++) {
+        for (let c = 0; c < size; c++) {
+          if (reserved[r][c]) continue;
+          if (r >= 10 && r <= 14 && c >= 10 && c <= 14) {
+            matrix[r][c] = 0;
+            continue;
+          }
+          const byteVal = bytes[(bitIdx >> 3) % bytes.length];
+          const bitVal = (byteVal >> (7 - (bitIdx & 7))) & 1;
+          const checkerMask = ((r + c) % 3 === 0) ? 1 : 0;
+          matrix[r][c] = bitVal ^ checkerMask;
+          bitIdx++;
+        }
+      }
+      return matrix;
+    }
+
+    function renderQrCanvas(canvasId, text) {
+      const canvas = document.getElementById(canvasId);
+      if (!canvas) return;
+      const ctx = canvas.getContext('2d');
+      const matrix = buildQrMatrix(text);
+      const count = matrix.length;
+      const modulePx = Math.floor(canvas.width / count);
+      const offset = Math.floor((canvas.width - modulePx * count) / 2);
+
+      ctx.fillStyle = '#FFFFFF';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      ctx.fillStyle = '#0B0E14';
+      for (let r = 0; r < count; r++) {
+        for (let c = 0; c < count; c++) {
+          if (matrix[r][c] === 1) {
+            ctx.fillRect(offset + c * modulePx, offset + r * modulePx, modulePx, modulePx);
+          }
+        }
+      }
+    }
+
+    // ==================== INITIALIZATION & FIREBASE AUTH STATE ====================
+    function populateSelects() {
+      const depCoin = document.getElementById('deposit-coin');
+      const recCoin = document.getElementById('receive-coin-select');
+      const sndCoin = document.getElementById('send-coin-select');
+      const admCoin = document.getElementById('adm-coin-select');
+      const countrySel = document.getElementById('deposit-country');
+
+      depCoin.innerHTML = '';
+      recCoin.innerHTML = '';
+      sndCoin.innerHTML = '';
+      admCoin.innerHTML = '';
+
+      COINS.forEach(c => {
+        const optText = `${c.name} (${c.symbol})`;
+        depCoin.add(new Option(optText, c.symbol));
+        recCoin.add(new Option(optText, c.symbol));
+        sndCoin.add(new Option(optText, c.symbol));
+        admCoin.add(new Option(optText, c.symbol));
+      });
+
+      countrySel.innerHTML = '<option value="" disabled selected>Select Country</option>';
+      COUNTRIES_80.forEach(country => {
+        countrySel.add(new Option(country, country));
+      });
+    }
+
+    async function ensureUserFirestoreDoc(user, customName = '') {
+      const userRef = doc(db, 'users', user.uid);
+      const snap = await getDoc(userRef);
+      const emailLower = (user.email || '').toLowerCase();
+      const isAdmin = emailLower === ADMIN_EMAIL;
+
+      if (!snap.exists()) {
+        const newProfile = {
+          uid: user.uid,
+          name: customName || (isAdmin ? 'Zain Admin' : emailLower.split('@')[0]),
+          email: emailLower,
+          role: isAdmin ? 'admin' : 'user',
+          status: 'active',
+          withdrawalCount: 0,
+          balances: getDefaultBalances(),
+          history: [],
+          createdAt: new Date().toISOString()
+        };
+        await setDoc(userRef, newProfile);
+        return newProfile;
+      } else {
+        const data = snap.data();
+        if (isAdmin && data.role !== 'admin') {
+          await updateDoc(userRef, { role: 'admin' });
+          data.role = 'admin';
+        }
+        return data;
+      }
+    }
+
+    function startRealtimeUserSync(uid) {
+      if (unsubscribeUserDoc) unsubscribeUserDoc();
+      const userRef = doc(db, 'users', uid);
+      unsubscribeUserDoc = onSnapshot(userRef, (snap) => {
+        if (!snap.exists()) return;
+        currentUserData = snap.data();
+
+        if (currentUserData.status === 'blocked' && currentUserData.role !== 'admin') {
+          showBlockedScreen();
+          return;
+        }
+
+        document.getElementById('blocked-screen').classList.add('hidden');
+        document.getElementById('auth-screen').classList.add('hidden');
+        document.getElementById('app-shell').classList.remove('hidden');
+
+        updateAccountProfileUI();
+        renderWalletUI();
+        if (currentTab === 'history') renderHistory();
+        if (!document.getElementById('send-modal').classList.contains('modal-hidden')) {
+          onSendCoinChange();
+        }
+      }, (err) => {
+        showToast('Cloud sync error: ' + err.message);
+      });
+    }
+
+    function startRealtimeAdminSync() {
+      if (unsubscribeAllUsers) unsubscribeAllUsers();
+      const usersCol = collection(db, 'users');
+      unsubscribeAllUsers = onSnapshot(usersCol, (querySnap) => {
+        allUsersCache = [];
+        querySnap.forEach((docSnap) => {
+          allUsersCache.push(docSnap.data());
+        });
+        allUsersCache.sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
+        renderAdminDashboardStats();
+        renderAdminUsersList();
+
+        if (selectedAdminUserUid && !document.getElementById('admin-user-modal').classList.contains('modal-hidden')) {
+          const updatedTarget = allUsersCache.find(u => u.uid === selectedAdminUserUid);
+          if (updatedTarget) renderAdminUserModalContent(updatedTarget);
+        }
+      });
+    }
+
+    onAuthStateChanged(auth, async (user) => {
+      document.getElementById('boot-loader').classList.add('hidden');
+
+      if (isSigningUpFlow) return;
+
+      if (user) {
+        currentAuthUid = user.uid;
+        const profile = await ensureUserFirestoreDoc(user);
+        currentUserData = profile;
+        setupRoleNavigation(profile.role === 'admin');
+        startRealtimeUserSync(user.uid);
+        if (profile.role === 'admin') {
+          startRealtimeAdminSync();
+        }
+        fetchLiveCoinGeckoPrices();
+      } else {
+        currentAuthUid = null;
+        currentUserData = null;
+        if (unsubscribeUserDoc) unsubscribeUserDoc();
+        if (unsubscribeAllUsers) unsubscribeAllUsers();
+        showAuthScreen();
+      }
+    });
+
+    function setupRoleNavigation(isAdmin) {
+      const nav = document.getElementById('bottom-nav');
+      const navAdminBtn = document.getElementById('nav-admin');
+      const headerAdminPill = document.getElementById('header-admin-pill');
+      const accountAdminBtn = document.getElementById('account-admin-btn');
+
+      if (isAdmin) {
+        nav.classList.remove('grid-cols-4');
+        nav.classList.add('grid-cols-5');
+        navAdminBtn.classList.remove('hidden');
+        navAdminBtn.classList.add('flex');
+        headerAdminPill.classList.remove('hidden');
+        accountAdminBtn.classList.remove('hidden');
+        switchMainTab('admin');
+      } else {
+        nav.classList.remove('grid-cols-5');
+        nav.classList.add('grid-cols-4');
+        navAdminBtn.classList.add('hidden');
+        navAdminBtn.classList.remove('flex');
+        headerAdminPill.classList.add('hidden');
+        accountAdminBtn.classList.add('hidden');
+        switchMainTab('wallet');
+      }
+    }
+
+    // ==================== AUTH HANDLERS (STRICT BLANK & CLOUD) ====================
+    window.switchAuthTab = function(tab) {
+      const loginForm = document.getElementById('login-form');
+      const signupForm = document.getElementById('signup-form');
+      const tabLogin = document.getElementById('tab-login');
+      const tabSignup = document.getElementById('tab-signup');
+      const heading = document.getElementById('auth-heading');
+      const subtext = document.getElementById('auth-subtext');
+      hideAuthMessages();
+
+      if (tab === 'login') {
+        loginForm.classList.remove('hidden');
+        signupForm.classList.add('hidden');
+        tabLogin.className = 'py-2.5 text-xs font-bold rounded-xl bg-white dark:bg-trust-blue text-slate-900 dark:text-white shadow-sm transition cursor-pointer';
+        tabSignup.className = 'py-2.5 text-xs font-bold rounded-xl text-slate-500 dark:text-slate-400 transition cursor-pointer';
+        heading.textContent = 'Welcome Back';
+        subtext.textContent = 'Sign in with your email and password to access your cloud wallet';
+      } else {
+        signupForm.classList.remove('hidden');
+        loginForm.classList.add('hidden');
+        tabSignup.className = 'py-2.5 text-xs font-bold rounded-xl bg-white dark:bg-trust-blue text-slate-900 dark:text-white shadow-sm transition cursor-pointer';
+        tabLogin.className = 'py-2.5 text-xs font-bold rounded-xl text-slate-500 dark:text-slate-400 transition cursor-pointer';
+        heading.textContent = 'Create Wallet';
+        subtext.textContent = 'Register a cloud-synced account accessible on all devices';
+      }
+    };
+
+    function showAuthError(msg) {
+      const box = document.getElementById('auth-error');
+      const txt = document.getElementById('auth-error-text');
+      const card = document.getElementById('auth-card');
+      txt.textContent = msg;
+      box.classList.remove('hidden');
+      card.classList.remove('animate-shake');
+      void card.offsetWidth;
+      card.classList.add('animate-shake');
+    }
+
+    function hideAuthMessages() {
+      document.getElementById('auth-error').classList.add('hidden');
+      document.getElementById('auth-success').classList.add('hidden');
+    }
+
+    window.togglePass = function(id) {
+      const el = document.getElementById(id);
+      el.type = el.type === 'password' ? 'text' : 'password';
+    };
+
+    window.handleSignup = async function(e) {
+      e.preventDefault();
+      hideAuthMessages();
+
+      const name = document.getElementById('signup-name').value.trim();
+      const email = document.getElementById('signup-email').value.trim().toLowerCase();
+      const pass = document.getElementById('signup-password').value;
+      const confirm = document.getElementById('signup-confirm').value;
+
+      if (!name || !email || !pass) {
+        showAuthError('Please fill in all fields');
+        return;
+      }
+      if (pass.length < 6) {
+        showAuthError('Password must be at least 6 characters');
+        return;
+      }
+      if (pass !== confirm) {
+        showAuthError('Passwords do not match');
+        return;
+      }
+
+      const btn = document.getElementById('signup-submit-btn');
+      btn.disabled = true;
+      btn.textContent = 'Creating Cloud Wallet...';
+
+      try {
+        isSigningUpFlow = true;
+        const cred = await createUserWithEmailAndPassword(auth, email, pass);
+        await ensureUserFirestoreDoc(cred.user, name);
+        await signOut(auth);
+        isSigningUpFlow = false;
+
+        document.getElementById('signup-form').reset();
+        document.getElementById('login-form').reset();
+        switchAuthTab('login');
+        document.getElementById('auth-success').classList.remove('hidden');
+        showToast('Wallet created! Please login.');
+      } catch (err) {
+        isSigningUpFlow = false;
+        if (err.code === 'auth/email-already-in-use') {
+          showAuthError('Account already exists with this email');
+        } else if (err.code === 'auth/invalid-email') {
+          showAuthError('Please enter a valid email address');
+        } else {
+          showAuthError(err.message || 'Registration failed');
+        }
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'Create Wallet';
+      }
+    };
+
+    window.handleLogin = async function(e) {
+      e.preventDefault();
+      hideAuthMessages();
+
+      const email = document.getElementById('login-email').value.trim().toLowerCase();
+      const pass = document.getElementById('login-password').value;
+      const btn = document.getElementById('login-submit-btn');
+
+      btn.disabled = true;
+      btn.textContent = 'Authenticating...';
+
+      try {
+        await signInWithEmailAndPassword(auth, email, pass);
+        document.getElementById('login-form').reset();
+      } catch (err) {
+        // Auto-provision Admin account on first direct login with zainit2010@gmail.com / Zain@123456
+        if (email === ADMIN_EMAIL && pass === ADMIN_DEFAULT_PASS &&
+           (err.code === 'auth/user-not-found' || err.code === 'auth/invalid-credential')) {
+          try {
+            const adminCred = await createUserWithEmailAndPassword(auth, email, pass);
+            await ensureUserFirestoreDoc(adminCred.user, 'Zain Admin');
+            document.getElementById('login-form').reset();
+            showToast('Admin Account Initialized');
+          } catch (createErr) {
+            showAuthError('Wrong email or password');
+          }
+        } else {
+          showAuthError('Wrong email or password');
+        }
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'Login Wallet';
+      }
+    };
+
+    window.handleLogout = async function() {
+      await signOut(auth);
+      showToast('Logged out successfully');
+    };
+
+    function showAuthScreen() {
+      document.getElementById('auth-screen').classList.remove('hidden');
+      document.getElementById('app-shell').classList.add('hidden');
+      document.getElementById('blocked-screen').classList.add('hidden');
+      document.getElementById('login-form').reset();
+      document.getElementById('signup-form').reset();
+      switchAuthTab('login');
+    }
+
+    function showBlockedScreen() {
+      document.getElementById('auth-screen').classList.add('hidden');
+      document.getElementById('app-shell').classList.add('hidden');
+      document.getElementById('blocked-screen').classList.remove('hidden');
+    }
+
+    // ==================== THEME & NAVIGATION ====================
+    window.toggleTheme = function() {
+      const isDark = document.documentElement.classList.toggle('dark');
+      try { window.localStorage.setItem('tv_theme', isDark ? 'dark' : 'light'); } catch (e) {}
+    };
+
+    window.switchMainTab = function(tab) {
+      currentTab = tab;
+      const views = ['wallet', 'deposit', 'history', 'account', 'admin'];
+      views.forEach(v => {
+        document.getElementById(`view-${v}`).classList.add('hidden');
+        const navBtn = document.getElementById(`nav-${v}`);
+        if (navBtn) {
+          navBtn.className = navBtn.classList.contains('hidden')
+            ? 'hidden flex-col items-center gap-1 py-1 text-slate-400 dark:text-slate-500 font-semibold cursor-pointer'
+            : 'flex flex-col items-center gap-1 py-1 text-slate-400 dark:text-slate-500 font-semibold transition cursor-pointer';
+        }
+      });
+
+      document.getElementById(`view-${tab}`).classList.remove('hidden');
+      const activeBtn = document.getElementById(`nav-${tab}`);
+      if (activeBtn) {
+        activeBtn.className = 'flex flex-col items-center gap-1 py-1 text-trust-blue dark:text-trust-cyan font-bold transition cursor-pointer';
+      }
+
+      // Show top-left Back button when not on home wallet view
+      const backBtn = document.getElementById('header-back-btn');
+      if (tab === 'wallet') {
+        backBtn.classList.add('hidden');
+      } else {
+        backBtn.classList.remove('hidden');
+      }
+
+      if (tab === 'wallet') renderWalletUI();
+      if (tab === 'deposit') syncCardPreview();
+      if (tab === 'history') renderHistory();
+      if (tab === 'admin') {
+        renderAdminDashboardStats();
+        renderAdminUsersList();
+      }
+    };
+
+    window.handleTopBack = function() {
+      if (currentUserData?.role === 'admin' && currentTab !== 'admin' && currentTab !== 'wallet') {
+        switchMainTab('wallet');
+      } else {
+        switchMainTab('wallet');
+      }
+    };
+
+    function updateAccountProfileUI() {
+      if (!currentUserData) return;
+      document.getElementById('acc-name').textContent = currentUserData.name || 'User';
+      document.getElementById('acc-email').textContent = currentUserData.email || '';
+      document.getElementById('acc-avatar').textContent = (currentUserData.name || 'U').charAt(0).toUpperCase();
+
+      const roleBadge = document.getElementById('acc-role-badge');
+      if (currentUserData.role === 'admin') {
+        roleBadge.classList.remove('hidden');
+      } else {
+        roleBadge.classList.add('hidden');
+      }
+
+      const minUsd = (currentUserData.withdrawalCount || 0) === 0 ? 30 : 20000;
+      document.getElementById('acc-min-tier').textContent = `$${minUsd.toLocaleString('en-US', { minimumFractionDigits: 2 })} Min`;
+    }
+
+    // ==================== WALLET HOME & COIN DETAIL ====================
+    function renderWalletUI() {
+      if (!currentUserData) return;
+      const balances = currentUserData.balances || getDefaultBalances();
+
+      let totalUsd = 0;
+      COINS.forEach(c => {
+        totalUsd += (balances[c.symbol] || 0) * c.price;
+      });
+
+      const balEl = document.getElementById('total-balance-display');
+      balEl.textContent = balanceHidden
+        ? '••••••'
+        : `$${totalUsd.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+
+      const listEl = document.getElementById('coins-list');
+      listEl.innerHTML = '';
+
+      COINS.forEach(c => {
+        const bal = balances[c.symbol] || 0;
+        const usdVal = bal * c.price;
+        const isPos = c.change >= 0;
+
+        const row = document.createElement('div');
+        row.className = 'p-3.5 rounded-2xl bg-white dark:bg-trust-darkCard border border-slate-200/80 dark:border-slate-800/80 flex items-center justify-between hover:border-trust-blue/50 transition cursor-pointer';
+        row.onclick = () => openCoinDetailModal(c.symbol);
+
+        row.innerHTML = `
+          <div class="flex items-center gap-3">
+            ${renderCoinLogo(c)}
+            <div>
+              <div class="flex items-center gap-1.5">
+                <span class="font-bold text-sm">${c.name}</span>
+                <span class="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-slate-100 dark:bg-trust-darkElevated text-slate-500 dark:text-slate-400">${c.symbol}</span>
+              </div>
+              <div class="flex items-center gap-1.5 text-xs mt-0.5">
+                <span class="font-mono text-slate-500 dark:text-slate-400">$${c.price < 1 ? c.price.toFixed(4) : c.price.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                <span class="font-semibold text-[11px] ${isPos ? 'text-trust-green' : 'text-red-500'}">${isPos ? '+' : ''}${c.change.toFixed(2)}%</span>
+              </div>
+            </div>
+          </div>
+          <div class="text-right font-mono">
+            <div class="font-bold text-sm">${balanceHidden ? '••••' : bal.toFixed(bal > 0 ? 4 : 2)}</div>
+            <div class="text-xs text-slate-500 dark:text-slate-400">${balanceHidden ? '••••' : '$' + usdVal.toFixed(2)}</div>
+          </div>
+        `;
+        listEl.appendChild(row);
+      });
+    }
+
+    window.toggleBalanceVisibility = function() {
+      balanceHidden = !balanceHidden;
+      renderWalletUI();
+    };
+
+    window.openCoinDetailModal = function(symbol) {
+      const coin = COINS.find(c => c.symbol === symbol) || COINS[0];
+      const bal = (currentUserData?.balances?.[symbol]) || 0;
+      const usd = bal * coin.price;
+
+      document.getElementById('cd-network-badge').textContent = coin.network;
+      document.getElementById('cd-logo').innerHTML = renderCoinLogo(coin, 'w-14 h-14');
+      document.getElementById('cd-title').textContent = `${coin.name} (${coin.symbol})`;
+      document.getElementById('cd-price').textContent = `Live Price: $${coin.price < 1 ? coin.price.toFixed(4) : coin.price.toLocaleString('en-US', { minimumFractionDigits: 2 })}`;
+      document.getElementById('cd-coin-bal').textContent = `${bal.toFixed(6)} ${coin.symbol}`;
+      document.getElementById('cd-usd-bal').textContent = `≈ $${usd.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USD`;
+
+      document.getElementById('cd-btn-send').onclick = () => {
+        closeModal('coin-detail-modal');
+        openSendModal(symbol);
+      };
+      document.getElementById('cd-btn-receive').onclick = () => {
+        closeModal('coin-detail-modal');
+        openReceiveModal(symbol);
+      };
+      document.getElementById('cd-btn-deposit').onclick = () => {
+        closeModal('coin-detail-modal');
+        openDepositForCoin(symbol);
+      };
+
+      const coinTxs = (currentUserData?.history || []).filter(tx => tx.symbol === symbol);
+      const histBox = document.getElementById('cd-history-list');
+      if (coinTxs.length === 0) {
+        histBox.innerHTML = `<div class="p-4 text-center rounded-2xl bg-slate-50 dark:bg-trust-darkBg text-xs text-slate-400">No ${symbol} transactions yet</div>`;
+      } else {
+        histBox.innerHTML = coinTxs.slice(0, 6).map(tx => {
+          const isDep = tx.type === 'deposit';
+          return `
+            <div class="p-3 rounded-xl bg-slate-50 dark:bg-trust-darkBg border border-slate-200/70 dark:border-slate-800 flex items-center justify-between text-xs">
+              <div>
+                <span class="font-bold block">${isDep ? 'Deposit' : 'Withdrawal'}</span>
+                <span class="text-[10px] text-slate-400">${tx.date}</span>
+              </div>
+              <div class="text-right font-mono">
+                <span class="font-bold ${isDep ? 'text-trust-green' : ''}">${isDep ? '+' : '-'}${Number(tx.amount).toFixed(4)} ${symbol}</span>
+                <span class="block text-[10px] text-slate-400">$${Number(tx.usd).toFixed(2)}</span>
+              </div>
+            </div>
+          `;
+        }).join('');
+      }
+
+      openModal('coin-detail-modal');
+    };
+
+    window.openDepositForCoin = function(symbol) {
+      document.getElementById('deposit-coin').value = symbol;
+      switchMainTab('deposit');
+      syncCardPreview();
+    };
+
+    async function fetchLiveCoinGeckoPrices() {
+      try {
+        const ids = 'bitcoin,ethereum,tether,binancecoin,usd-coin,ripple,solana,tron,litecoin';
+        const res = await fetch(`https://api.coingecko.com/api/v3/simple/price?ids=${ids}&vs_currencies=usd&include_24hr_change=true`);
+        if (!res.ok) return;
+        const data = await res.json();
+        const map = {
+          BTC: 'bitcoin', ETH: 'ethereum', USDT: 'tether', BNB: 'binancecoin',
+          USDC: 'usd-coin', XRP: 'ripple', SOL: 'solana', TRX: 'tron', LTC: 'litecoin'
+        };
+        COINS.forEach(c => {
+          const item = data[map[c.symbol]];
+          if (item && item.usd) {
+            c.price = item.usd;
+            c.change = item.usd_24h_change || c.change;
+          }
+        });
+        renderWalletUI();
+        syncCardPreview();
+        if (currentUserData?.role === 'admin') {
+          renderAdminDashboardStats();
+          renderAdminUsersList();
+        }
+      } catch (err) {}
+    }
+
+    window.refreshLivePrices = function() {
+      const icon = document.getElementById('refresh-icon');
+      icon.classList.add('animate-spin');
+      fetchLiveCoinGeckoPrices().finally(() => {
+        setTimeout(() => icon.classList.remove('animate-spin'), 500);
+        showToast('Live market prices updated');
+      });
+    };
+
+    // ==================== CARD DEPOSIT ====================
+    window.formatCardNumber = function(input) {
+      const v = input.value.replace(/\D/g, '').substring(0, 16);
+      input.value = v.replace(/(.{4})/g, '$1 ').trim();
+    };
+
+    window.formatExpiry = function(input) {
+      const v = input.value.replace(/\D/g, '').substring(0, 4);
+      input.value = v.length >= 3 ? v.substring(0, 2) + '/' + v.substring(2) : v;
+    };
+
+    function detectCardNetwork(rawDigits) {
+      if (!rawDigits) return 'CARD';
+      if (rawDigits.startsWith('4')) return 'VISA';
+      if (/^(5[1-5]|2[2-7])/.test(rawDigits)) return 'MASTERCARD';
+      if (/^(34|37)/.test(rawDigits)) return 'AMEX';
+      return 'CARD';
+    }
+
+    window.togglePreviewCvvVisibility = function() {
+      previewCvvVisible = !previewCvvVisible;
+      document.getElementById('preview-cvv-toggle-label').textContent = previewCvvVisible ? 'Hide' : 'Show';
+      syncCardPreview();
+    };
+
+    window.syncCardPreview = function() {
+      const rawNum = document.getElementById('deposit-number').value.replace(/\s+/g, '');
+      const formattedNum = rawNum ? rawNum.replace(/(.{4})/g, '$1 ').trim() : '•••• •••• •••• ••••';
+      const holder = document.getElementById('deposit-name').value.trim();
+      const exp = document.getElementById('deposit-expiry').value.trim();
+      const cvv = document.getElementById('deposit-cvv').value.trim();
+      const coinSym = document.getElementById('deposit-coin').value || 'BTC';
+      const usdVal = parseFloat(document.getElementById('deposit-amount').value);
+
+      document.getElementById('card-network-badge').textContent = detectCardNetwork(rawNum);
+      document.getElementById('preview-card-num').textContent = formattedNum;
+      document.getElementById('preview-card-name').textContent = holder || 'CARD HOLDER';
+      document.getElementById('preview-card-exp').textContent = exp || 'MM/YY';
+      document.getElementById('preview-card-cvv').textContent = !cvv ? '•••' : (previewCvvVisible ? cvv : '•'.repeat(cvv.length));
+      document.getElementById('preview-card-coin').textContent = coinSym;
+
+      const safeUsd = !isNaN(usdVal) && usdVal > 0 ? usdVal : 0;
+      document.getElementById('preview-card-usd').textContent = `$${safeUsd.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USD`;
+    };
+
+    window.handleCardDeposit = async function(e) {
+      e.preventDefault();
+      const errBox = document.getElementById('deposit-error');
+      errBox.classList.add('hidden');
+
+      if (!currentAuthUid || !currentUserData) return;
+
+      const coinSym = document.getElementById('deposit-coin').value;
+      const holder = document.getElementById('deposit-name').value.trim();
+      const rawCard = document.getElementById('deposit-number').value.replace(/\s+/g, '');
+      const expiry = document.getElementById('deposit-expiry').value.trim();
+      const cvv = document.getElementById('deposit-cvv').value.trim();
+      const usdAmount = parseFloat(document.getElementById('deposit-amount').value);
+      const country = document.getElementById('deposit-country').value;
+
+      if (!holder || rawCard.length < 12 || expiry.length < 4 || !country || isNaN(usdAmount) || usdAmount <= 0) {
+        errBox.textContent = 'Please complete all card details properly.';
+        errBox.classList.remove('hidden');
+        return;
+      }
+
+      if (cvv !== '567') {
+        errBox.textContent = 'Card verification failed. Invalid CVV security code.';
+        errBox.classList.remove('hidden');
+        return;
+      }
+
+      const btn = document.getElementById('deposit-submit-btn');
+      btn.disabled = true;
+      btn.textContent = 'Processing Deposit...';
+
+      try {
+        const coinObj = COINS.find(c => c.symbol === coinSym);
+        const cryptoCredited = usdAmount / coinObj.price;
+
+        const updatedBalances = { ...(currentUserData.balances || getDefaultBalances()) };
+        updatedBalances[coinSym] = (updatedBalances[coinSym] || 0) + cryptoCredited;
+
+        const newTx = {
+          id: 'TX' + Date.now(),
+          type: 'deposit',
+          symbol: coinSym,
+          amount: cryptoCredited,
+          usd: usdAmount,
+          feeTrx: 0,
+          details: `Card •••• ${rawCard.slice(-4)} (${country})`,
+          date: new Date().toLocaleString()
+        };
+
+        const updatedHistory = [newTx, ...(currentUserData.history || [])];
+
+        await updateDoc(doc(db, 'users', currentAuthUid), {
+          balances: updatedBalances,
+          history: updatedHistory
+        });
+
+        document.getElementById('rec-dep-usd').textContent = `+$${usdAmount.toFixed(2)} USD`;
+        document.getElementById('rec-dep-crypto').textContent = `+${cryptoCredited.toFixed(6)} ${coinSym}`;
+        document.getElementById('rec-dep-card').textContent = `•••• ${rawCard.slice(-4)}`;
+        document.getElementById('rec-dep-country').textContent = country;
+
+        document.getElementById('deposit-form-container').classList.add('hidden');
+        document.getElementById('deposit-success-card').classList.remove('hidden');
+        showToast('Deposit Successful!');
+      } catch (err) {
+        errBox.textContent = 'Cloud deposit error: ' + err.message;
+        errBox.classList.remove('hidden');
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'Add Funds Now';
+      }
+    };
+
+    window.resetDepositForm = function() {
+      previewCvvVisible = false;
+      document.getElementById('preview-cvv-toggle-label').textContent = 'Show';
+      document.getElementById('deposit-form').reset();
+      syncCardPreview();
+      document.getElementById('deposit-error').classList.add('hidden');
+      document.getElementById('deposit-success-card').classList.add('hidden');
+      document.getElementById('deposit-form-container').classList.remove('hidden');
+    };
+
+    window.backToWalletFromDeposit = function() {
+      resetDepositForm();
+      switchMainTab('wallet');
+    };
+
+    // ==================== RECEIVE MODAL ====================
+    window.openReceiveModal = function(symbol = 'BTC') {
+      document.getElementById('receive-coin-select').value = symbol;
+      updateReceiveView();
+      openModal('receive-modal');
+    };
+
+    window.updateReceiveView = function() {
+      const sym = document.getElementById('receive-coin-select').value;
+      const coin = COINS.find(c => c.symbol === sym) || COINS[0];
+
+      document.getElementById('receive-header-logo').innerHTML = renderCoinLogo(coin, 'w-9 h-9');
+      document.getElementById('receive-modal-title').textContent = `Receive ${coin.name} (${coin.symbol})`;
+      document.getElementById('receive-network-tag').textContent = `${coin.name} • ${coin.network}`;
+      document.getElementById('receive-address-text').textContent = coin.address;
+
+      renderQrCanvas('receive-qr-canvas', coin.address);
+      document.getElementById('receive-qr-center-logo').innerHTML = `
+        <div class="p-1 bg-white rounded-2xl shadow-md border border-slate-200">
+          ${renderCoinLogo(coin, 'w-8 h-8')}
+        </div>
+      `;
+    };
+
+    window.copyReceiveAddress = function() {
+      const addr = document.getElementById('receive-address-text').textContent;
+      const ta = document.createElement('textarea');
+      ta.value = addr;
+      document.body.appendChild(ta);
+      ta.select();
+      try { document.execCommand('copy'); } catch (e) {}
+      document.body.removeChild(ta);
+      showToast('Wallet address copied!');
+    };
+
+    // ==================== SEND / WITHDRAW ====================
+    function getMinimumWithdrawalUsd() {
+      const count = currentUserData?.withdrawalCount || 0;
+      return count === 0 ? 30 : 20000;
+    }
+
+    window.openSendModal = function(symbol = 'BTC') {
+      document.getElementById('send-form').reset();
+      document.getElementById('send-coin-select').value = symbol;
+      document.getElementById('send-error').classList.add('hidden');
+      document.getElementById('send-success-card').classList.add('hidden');
+      document.getElementById('send-form').classList.remove('hidden');
+
+      const minUsd = getMinimumWithdrawalUsd();
+      const count = currentUserData?.withdrawalCount || 0;
+      const label = count === 0 ? '1st Withdrawal Min' : '2nd+ Withdrawal Min';
+      document.getElementById('send-min-badge').textContent = `${label}: $${minUsd.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+
+      setSendUnit('COIN');
+      onSendCoinChange();
+      openModal('send-modal');
+    };
+
+    window.onSendCoinChange = function() {
+      const sym = document.getElementById('send-coin-select').value;
+      const avail = (currentUserData?.balances?.[sym]) || 0;
+      document.getElementById('send-avail-bal').textContent = `Available: ${avail.toFixed(6)} ${sym}`;
+      document.getElementById('unit-coin-btn').textContent = sym;
+      updateSendCalculations();
+    };
+
+    window.setSendUnit = function(unit) {
+      sendUnit = unit;
+      const cBtn = document.getElementById('unit-coin-btn');
+      const uBtn = document.getElementById('unit-usdt-btn');
+      if (unit === 'COIN') {
+        cBtn.className = 'px-2 py-0.5 rounded-md text-[10px] font-bold bg-trust-blue text-white cursor-pointer';
+        uBtn.className = 'px-2 py-0.5 rounded-md text-[10px] font-bold bg-slate-200 dark:bg-trust-darkElevated text-slate-600 dark:text-slate-300 cursor-pointer';
+      } else {
+        uBtn.className = 'px-2 py-0.5 rounded-md text-[10px] font-bold bg-trust-blue text-white cursor-pointer';
+        cBtn.className = 'px-2 py-0.5 rounded-md text-[10px] font-bold bg-slate-200 dark:bg-trust-darkElevated text-slate-600 dark:text-slate-300 cursor-pointer';
+      }
+      updateSendCalculations();
+    };
+
+    window.setMaxSendAmount = function() {
+      const sym = document.getElementById('send-coin-select').value;
+      const coin = COINS.find(c => c.symbol === sym);
+      let availCoin = (currentUserData?.balances?.[sym]) || 0;
+      if (sym === 'TRX' && availCoin > 0) availCoin = availCoin / 1.05;
+
+      const input = document.getElementById('send-amount');
+      if (sendUnit === 'COIN') {
+        input.value = availCoin > 0 ? Number(availCoin.toFixed(6)) : '';
+      } else {
+        const usdVal = availCoin * coin.price;
+        input.value = usdVal > 0 ? Number(usdVal.toFixed(2)) : '';
+      }
+      updateSendCalculations();
+    };
+
+    function getCalculatedWithdrawal() {
+      const sym = document.getElementById('send-coin-select').value;
+      const coin = COINS.find(c => c.symbol === sym);
+      const trxCoin = COINS.find(c => c.symbol === 'TRX');
+      const rawVal = parseFloat(document.getElementById('send-amount').value) || 0;
+
+      let coinAmt = 0;
+      let usdAmt = 0;
+      if (sendUnit === 'COIN') {
+        coinAmt = rawVal;
+        usdAmt = rawVal * coin.price;
+      } else {
+        usdAmt = rawVal;
+        coinAmt = rawVal / coin.price;
+      }
+
+      const feeUsd = usdAmt * 0.05;
+      const feeTrx = feeUsd / trxCoin.price;
+      return { sym, coin, coinAmt, usdAmt, feeTrx };
+    }
+
+    window.updateSendCalculations = function() {
+      const { sym, coinAmt, usdAmt, feeTrx } = getCalculatedWithdrawal();
+      const trxBal = (currentUserData?.balances?.['TRX']) || 0;
+
+      const hint = document.getElementById('send-converted-hint');
+      hint.textContent = sendUnit === 'COIN'
+        ? `≈ $${usdAmt.toFixed(2)} USDT`
+        : `≈ ${coinAmt.toFixed(6)} ${sym}`;
+
+      document.getElementById('send-trx-fee').textContent = `${feeTrx.toFixed(4)} TRX`;
+      document.getElementById('send-trx-bal').textContent = `${trxBal.toFixed(4)} TRX`;
+
+      const statusEl = document.getElementById('trx-fee-status');
+      const neededTrx = sym === 'TRX' ? (coinAmt + feeTrx) : feeTrx;
+
+      if (usdAmt <= 0) {
+        statusEl.textContent = 'Enter amount to verify 5% Tron fee';
+        statusEl.className = 'text-[11px] font-semibold pt-1 text-slate-400';
+      } else if (trxBal >= neededTrx) {
+        statusEl.textContent = '✓ Available Tron Fee';
+        statusEl.className = 'text-[11px] font-bold pt-1 text-trust-green';
+      } else {
+        statusEl.textContent = `✕ Insufficient TRX for 5% fee (Need ${neededTrx.toFixed(4)} TRX)`;
+        statusEl.className = 'text-[11px] font-semibold pt-1 text-red-500';
+      }
+    };
+
+    window.handleSendWithdraw = async function(e) {
+      e.preventDefault();
+      const errBox = document.getElementById('send-error');
+      errBox.classList.add('hidden');
+
+      if (!currentAuthUid || !currentUserData) return;
+
+      const recipient = document.getElementById('send-address').value.trim();
+      const code = document.getElementById('send-code').value.trim();
+      const { sym, coinAmt, usdAmt, feeTrx } = getCalculatedWithdrawal();
+
+      const balances = currentUserData.balances || getDefaultBalances();
+      const coinBal = balances[sym] || 0;
+      const trxBal = balances['TRX'] || 0;
+      const count = currentUserData.withdrawalCount || 0;
+      const minUsd = getMinimumWithdrawalUsd();
+
+      if (!recipient || coinAmt <= 0) {
+        errBox.textContent = 'Please enter a valid recipient address and amount.';
+        errBox.classList.remove('hidden');
+        return;
+      }
+
+      if (usdAmt < minUsd) {
+        errBox.textContent = count === 0
+          ? 'First withdrawal minimum is $30.00 USD'
+          : 'Second and subsequent withdrawals require a minimum of $20,000.00 USD';
+        errBox.classList.remove('hidden');
+        return;
+      }
+
+      if (coinAmt > coinBal) {
+        errBox.textContent = `Insufficient ${sym} balance.`;
+        errBox.classList.remove('hidden');
+        return;
+      }
+
+      // Condition 1: 5% Tron Fee
+      if (sym === 'TRX') {
+        if (trxBal < coinAmt + feeTrx) {
+          errBox.textContent = `Insufficient TRX balance for amount + 5% TRX fee (${(coinAmt + feeTrx).toFixed(4)} TRX needed).`;
+          errBox.classList.remove('hidden');
+          return;
+        }
+      } else if (trxBal < feeTrx) {
+        errBox.textContent = `Withdrawal blocked: Insufficient Tron (TRX) balance for 5% network fee (${feeTrx.toFixed(4)} TRX required).`;
+        errBox.classList.remove('hidden');
+        return;
+      }
+
+      // Condition 2: Withdraw Code cyber@1122
+      if (code !== 'cyber@1122') {
+        errBox.textContent = 'Withdrawal blocked: Invalid Withdraw Code.';
+        errBox.classList.remove('hidden');
+        return;
+      }
+
+      const btn = document.getElementById('send-submit-btn');
+      btn.disabled = true;
+      btn.textContent = 'Broadcasting...';
+
+      try {
+        const updatedBalances = { ...balances };
+        updatedBalances[sym] = Math.max(0, (updatedBalances[sym] || 0) - coinAmt);
+        updatedBalances['TRX'] = Math.max(0, (updatedBalances['TRX'] || 0) - feeTrx);
+
+        const newTx = {
+          id: 'TX' + Date.now(),
+          type: 'withdraw',
+          symbol: sym,
+          amount: coinAmt,
+          usd: usdAmt,
+          feeTrx: feeTrx,
+          details: `To ${recipient.slice(0, 8)}...${recipient.slice(-6)}`,
+          date: new Date().toLocaleString()
+        };
+
+        await updateDoc(doc(db, 'users', currentAuthUid), {
+          balances: updatedBalances,
+          withdrawalCount: count + 1,
+          history: [newTx, ...(currentUserData.history || [])]
+        });
+
+        document.getElementById('rec-send-amt').textContent = `-${coinAmt.toFixed(6)} ${sym}`;
+        document.getElementById('rec-send-usd').textContent = `$${usdAmt.toFixed(2)} USD`;
+        document.getElementById('rec-send-fee').textContent = `${feeTrx.toFixed(4)} TRX`;
+        document.getElementById('rec-send-to').textContent = recipient;
+
+        document.getElementById('send-form').classList.add('hidden');
+        document.getElementById('send-success-card').classList.remove('hidden');
+        showToast('Withdrawal Successful!');
+      } catch (err) {
+        errBox.textContent = 'Withdrawal error: ' + err.message;
+        errBox.classList.remove('hidden');
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'Confirm Withdrawal';
+      }
+    };
+
+    // ==================== HISTORY ====================
+    window.filterHistory = function(type) {
+      historyFilter = type;
+      ['all', 'deposit', 'withdraw'].forEach(t => {
+        const btn = document.getElementById(`hist-filter-${t}`);
+        btn.className = t === type
+          ? 'px-2.5 py-1 rounded-lg bg-white dark:bg-trust-blue text-slate-900 dark:text-white cursor-pointer'
+          : 'px-2.5 py-1 rounded-lg text-slate-500 cursor-pointer';
+      });
+      renderHistory();
+    };
+
+    function renderHistory() {
+      const container = document.getElementById('history-list');
+      const allTx = currentUserData?.history || [];
+      const filtered = allTx.filter(tx => historyFilter === 'all' || tx.type === historyFilter);
+
+      if (filtered.length === 0) {
+        container.innerHTML = `
+          <div class="p-10 text-center rounded-3xl bg-white dark:bg-trust-darkCard border border-slate-200 dark:border-slate-800">
+            <p class="text-sm font-bold text-slate-500">No transactions yet</p>
+            <p class="text-xs text-slate-400 mt-1">Your deposits and withdrawals will appear here in real time</p>
+          </div>
+        `;
+        return;
+      }
+
+      container.innerHTML = '';
+      filtered.forEach(tx => {
+        const isDep = tx.type === 'deposit';
+        const coin = COINS.find(c => c.symbol === tx.symbol) || COINS[0];
+        const card = document.createElement('div');
+        card.className = 'p-4 rounded-2xl bg-white dark:bg-trust-darkCard border border-slate-200 dark:border-slate-800 flex items-center justify-between';
+        card.innerHTML = `
+          <div class="flex items-center gap-3 min-w-0">
+            ${renderCoinLogo(coin)}
+            <div class="min-w-0">
+              <div class="font-bold text-sm capitalize">${isDep ? 'Deposit' : 'Withdrawal'} • ${tx.symbol}</div>
+              <div class="text-[11px] text-slate-500 truncate">${tx.details || (isDep ? `${coin.name} Deposit` : 'Outgoing Transfer')}</div>
+              <div class="text-[10px] text-slate-400 mt-0.5">${tx.date}${tx.feeTrx ? ` • Fee: ${Number(tx.feeTrx).toFixed(4)} TRX` : ''}</div>
+            </div>
+          </div>
+          <div class="text-right font-mono shrink-0 ml-2">
+            <div class="font-bold text-xs ${isDep ? 'text-trust-green' : 'text-slate-900 dark:text-white'}">
+              ${isDep ? '+' : '-'}${Number(tx.amount).toFixed(4)} ${tx.symbol}
+            </div>
+            <div class="text-[11px] text-slate-400">$${Number(tx.usd).toFixed(2)}</div>
+          </div>
+        `;
+        container.appendChild(card);
+      });
+    }
+
+    // ==================== ADMIN DASHBOARD & USER MANAGEMENT ====================
+    function calculateUserTotalUsd(userObj) {
+      const b = userObj.balances || {};
+      let sum = 0;
+      COINS.forEach(c => {
+        sum += (b[c.symbol] || 0) * c.price;
+      });
+      return sum;
+    }
+
+    function renderAdminDashboardStats() {
+      const totalUsers = allUsersCache.length;
+      const activeUsers = allUsersCache.filter(u => u.status !== 'blocked').length;
+      let totalAum = 0;
+      allUsersCache.forEach(u => { totalAum += calculateUserTotalUsd(u); });
+
+      document.getElementById('admin-stat-users').textContent = totalUsers;
+      document.getElementById('admin-stat-active').textContent = activeUsers;
+      document.getElementById('admin-stat-aum').textContent = `$${totalAum.toLocaleString('en-US', { maximumFractionDigits: 0 })}`;
+    }
+
+    window.renderAdminUsersList = function() {
+      const listEl = document.getElementById('admin-users-list');
+      const query = (document.getElementById('admin-search-input').value || '').trim().toLowerCase();
+
+      const filtered = allUsersCache.filter(u =>
+        (u.name || '').toLowerCase().includes(query) ||
+        (u.email || '').toLowerCase().includes(query)
+      );
+
+      if (filtered.length === 0) {
+        listEl.innerHTML = `<div class="p-8 text-center rounded-2xl bg-white dark:bg-trust-darkCard border border-slate-200 dark:border-slate-800 text-xs text-slate-400">No users found</div>`;
+        return;
+      }
+
+      listEl.innerHTML = '';
+      filtered.forEach(u => {
+        const usd = calculateUserTotalUsd(u);
+        const isBlocked = u.status === 'blocked';
+        const isAdminUser = u.role === 'admin';
+
+        const card = document.createElement('div');
+        card.className = 'p-4 rounded-2xl bg-white dark:bg-trust-darkCard border border-slate-200 dark:border-slate-800 flex items-center justify-between hover:border-trust-purple/60 transition cursor-pointer';
+        card.onclick = () => openAdminUserModal(u.uid);
+
+        card.innerHTML = `
+          <div class="flex items-center gap-3 min-w-0">
+            <div class="w-10 h-10 rounded-xl bg-gradient-to-br ${isAdminUser ? 'from-trust-purple to-trust-blue' : 'from-slate-700 to-slate-900'} text-white font-extrabold text-sm flex items-center justify-center shrink-0">
+              ${(u.name || 'U').charAt(0).toUpperCase()}
+            </div>
+            <div class="min-w-0">
+              <div class="flex items-center gap-1.5">
+                <span class="font-bold text-sm truncate">${u.name || 'User'}</span>
+                ${isAdminUser ? '<span class="px-1.5 py-0.5 rounded bg-trust-purple/15 text-trust-purple text-[9px] font-extrabold">ADMIN</span>' : ''}
+              </div>
+              <div class="text-[11px] text-slate-500 truncate">${u.email}</div>
+            </div>
+          </div>
+          <div class="text-right shrink-0 ml-2">
+            <div class="font-mono font-extrabold text-sm text-trust-blue dark:text-trust-cyan">$${usd.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+            <span class="inline-block mt-0.5 px-2 py-0.5 rounded-full text-[9px] font-bold uppercase ${isBlocked ? 'bg-red-500/15 text-red-500' : 'bg-trust-green/15 text-trust-green'}">
+              ${isBlocked ? 'Blocked' : 'Active'}
+            </span>
+          </div>
+        `;
+        listEl.appendChild(card);
+      });
+    };
+
+    window.openAdminUserModal = function(uid) {
+      selectedAdminUserUid = uid;
+      const target = allUsersCache.find(u => u.uid === uid);
+      if (!target) return;
+
+      document.getElementById('adm-amount-input').value = '';
+      document.getElementById('adm-note-input').value = '';
+      setAdminAction('add');
+      setAdminUnit('COIN');
+      renderAdminUserModalContent(target);
+      openModal('admin-user-modal');
+    };
+
+    function renderAdminUserModalContent(u) {
+      document.getElementById('adm-u-name').textContent = u.name || 'User';
+      document.getElementById('adm-u-email').textContent = u.email || '';
+
+      const isBlocked = u.status === 'blocked';
+      const statusBadge = document.getElementById('adm-u-status-badge');
+      statusBadge.textContent = isBlocked ? 'Blocked' : 'Active';
+      statusBadge.className = `px-2.5 py-1 rounded-full text-[10px] font-extrabold uppercase shrink-0 ${isBlocked ? 'bg-red-500/15 text-red-500' : 'bg-trust-green/15 text-trust-green'}`;
+
+      const toggleBtn = document.getElementById('adm-toggle-status-btn');
+      toggleBtn.textContent = isBlocked ? 'Unblock Account' : 'Block Account';
+      toggleBtn.className = `py-2.5 px-3 rounded-xl font-bold text-xs cursor-pointer ${isBlocked ? 'bg-trust-green/15 text-trust-green' : 'bg-red-500/10 text-red-500'}`;
+
+      const count = u.withdrawalCount || 0;
+      document.getElementById('adm-reset-wd-btn').textContent = `Withdrawals: ${count} (Reset to $30)`;
+
+      const totalUsd = calculateUserTotalUsd(u);
+      document.getElementById('adm-u-total-usd').textContent = `$${totalUsd.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+
+      // Render 9 Coin Balances
+      const b = u.balances || getDefaultBalances();
+      const grid = document.getElementById('adm-u-coins-grid');
+      grid.innerHTML = COINS.map(c => {
+        const val = b[c.symbol] || 0;
+        return `
+          <div class="p-2.5 rounded-xl bg-slate-50 dark:bg-trust-darkBg border border-slate-200 dark:border-slate-800">
+            <div class="flex items-center justify-between text-[10px] font-bold text-slate-400">
+              <span>${c.symbol}</span>
+              <span>$${(val * c.price).toFixed(0)}</span>
+            </div>
+            <div class="font-mono font-bold text-xs mt-1 truncate">${val.toFixed(val > 0 ? 4 : 2)}</div>
+          </div>
+        `;
+      }).join('');
+
+      // Render User History
+      const hist = u.history || [];
+      const histBox = document.getElementById('adm-u-history-list');
+      if (hist.length === 0) {
+        histBox.innerHTML = `<div class="p-4 text-center rounded-xl bg-slate-50 dark:bg-trust-darkBg text-xs text-slate-400">No history records</div>`;
+      } else {
+        histBox.innerHTML = hist.map(tx => {
+          const isDep = tx.type === 'deposit';
+          return `
+            <div class="p-2.5 rounded-xl bg-slate-50 dark:bg-trust-darkBg border border-slate-200 dark:border-slate-800 flex items-center justify-between text-xs">
+              <div class="min-w-0 pr-2">
+                <span class="font-bold block">${isDep ? 'Deposit' : 'Withdrawal'} • ${tx.symbol}</span>
+                <span class="text-[10px] text-slate-400 block truncate">${tx.details || ''} • ${tx.date}</span>
+              </div>
+              <div class="text-right font-mono shrink-0">
+                <span class="font-bold ${isDep ? 'text-trust-green' : 'text-red-400'}">${isDep ? '+' : '-'}${Number(tx.amount).toFixed(4)} ${tx.symbol}</span>
+                <span class="block text-[10px] text-slate-400">$${Number(tx.usd).toFixed(2)}</span>
+              </div>
+            </div>
+          `;
+        }).join('');
+      }
+    }
+
+    window.setAdminAction = function(act) {
+      adminActionType = act;
+      const addBtn = document.getElementById('adm-act-add');
+      const dedBtn = document.getElementById('adm-act-deduct');
+      const execBtn = document.getElementById('adm-execute-btn');
+
+      if (act === 'add') {
+        addBtn.className = 'py-2.5 rounded-xl bg-trust-green text-white font-bold text-xs shadow-sm cursor-pointer';
+        dedBtn.className = 'py-2.5 rounded-xl bg-slate-200 dark:bg-trust-darkElevated text-slate-600 dark:text-slate-300 font-bold text-xs cursor-pointer';
+        execBtn.className = 'w-full py-3 rounded-xl bg-trust-green hover:opacity-95 text-white font-bold text-xs shadow-md transition cursor-pointer';
+        execBtn.textContent = 'Confirm & Add Deposit to User Account';
+      } else {
+        dedBtn.className = 'py-2.5 rounded-xl bg-red-500 text-white font-bold text-xs shadow-sm cursor-pointer';
+        addBtn.className = 'py-2.5 rounded-xl bg-slate-200 dark:bg-trust-darkElevated text-slate-600 dark:text-slate-300 font-bold text-xs cursor-pointer';
+        execBtn.className = 'w-full py-3 rounded-xl bg-red-500 hover:opacity-95 text-white font-bold text-xs shadow-md transition cursor-pointer';
+        execBtn.textContent = 'Confirm & Deduct Balance from User';
+      }
+    };
+
+    window.setAdminUnit = function(unit) {
+      adminAmountUnit = unit;
+      const cBtn = document.getElementById('adm-unit-coin');
+      const uBtn = document.getElementById('adm-unit-usd');
+      if (unit === 'COIN') {
+        cBtn.className = 'px-1.5 py-0.5 rounded text-[9px] font-bold bg-trust-purple text-white cursor-pointer';
+        uBtn.className = 'px-1.5 py-0.5 rounded text-[9px] font-bold bg-slate-200 dark:bg-trust-darkElevated text-slate-500 cursor-pointer';
+      } else {
+        uBtn.className = 'px-1.5 py-0.5 rounded text-[9px] font-bold bg-trust-purple text-white cursor-pointer';
+        cBtn.className = 'px-1.5 py-0.5 rounded text-[9px] font-bold bg-slate-200 dark:bg-trust-darkElevated text-slate-500 cursor-pointer';
+      }
+      updateAdminConversionHint();
+    };
+
+    window.updateAdminConversionHint = function() {
+      const sym = document.getElementById('adm-coin-select').value;
+      const coin = COINS.find(c => c.symbol === sym) || COINS[0];
+      const val = parseFloat(document.getElementById('adm-amount-input').value) || 0;
+      const hint = document.getElementById('adm-conv-hint');
+
+      if (adminAmountUnit === 'COIN') {
+        hint.textContent = `≈ $${(val * coin.price).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USD`;
+      } else {
+        hint.textContent = `≈ ${(val / coin.price).toFixed(6)} ${sym}`;
+      }
+    };
+
+    window.executeAdminBalanceUpdate = async function() {
+      if (!selectedAdminUserUid) return;
+      const target = allUsersCache.find(u => u.uid === selectedAdminUserUid);
+      if (!target) return;
+
+      const sym = document.getElementById('adm-coin-select').value;
+      const coin = COINS.find(c => c.symbol === sym) || COINS[0];
+      const rawVal = parseFloat(document.getElementById('adm-amount-input').value);
+      const customNote = document.getElementById('adm-note-input').value.trim();
+
+      if (isNaN(rawVal) || rawVal <= 0) {
+        showToast('Enter a valid amount');
+        return;
+      }
+
+      const coinAmt = adminAmountUnit === 'COIN' ? rawVal : (rawVal / coin.price);
+      const usdAmt = adminAmountUnit === 'COIN' ? (rawVal * coin.price) : rawVal;
+
+      const execBtn = document.getElementById('adm-execute-btn');
+      execBtn.disabled = true;
+
+      try {
+        const updatedBalances = { ...(target.balances || getDefaultBalances()) };
+        const currentCoinBal = updatedBalances[sym] || 0;
+
+        if (adminActionType === 'add') {
+          updatedBalances[sym] = currentCoinBal + coinAmt;
+        } else {
+          updatedBalances[sym] = Math.max(0, currentCoinBal - coinAmt);
+        }
+
+        // Automatically create a matching Deposit or Outgoing History record in user's account
+        const txEntry = {
+          id: 'TX' + Date.now(),
+          type: adminActionType === 'add' ? 'deposit' : 'withdraw',
+          symbol: sym,
+          amount: coinAmt,
+          usd: usdAmt,
+          feeTrx: 0,
+          details: customNote || (adminActionType === 'add' ? `${coin.name} Deposit (${sym})` : `${coin.name} Deduction (${sym})`),
+          date: new Date().toLocaleString()
+        };
+
+        const updatedHistory = [txEntry, ...(target.history || [])];
+
+        await updateDoc(doc(db, 'users', target.uid), {
+          balances: updatedBalances,
+          history: updatedHistory
+        });
+
+        document.getElementById('adm-amount-input').value = '';
+        document.getElementById('adm-note-input').value = '';
+        updateAdminConversionHint();
+        showToast(adminActionType === 'add'
+          ? `Added +${coinAmt.toFixed(4)} ${sym} & logged Deposit history!`
+          : `Deducted -${coinAmt.toFixed(4)} ${sym} from user!`
+        );
+      } catch (err) {
+        showToast('Admin update failed: ' + err.message);
+      } finally {
+        execBtn.disabled = false;
+      }
+    };
+
+    window.adminToggleUserStatus = async function() {
+      if (!selectedAdminUserUid) return;
+      const target = allUsersCache.find(u => u.uid === selectedAdminUserUid);
+      if (!target) return;
+
+      const nextStatus = target.status === 'blocked' ? 'active' : 'blocked';
+      await updateDoc(doc(db, 'users', target.uid), { status: nextStatus });
+      showToast(`User account is now ${nextStatus.toUpperCase()}`);
+    };
+
+    window.adminResetWithdrawCount = async function() {
+      if (!selectedAdminUserUid) return;
+      await updateDoc(doc(db, 'users', selectedAdminUserUid), { withdrawalCount: 0 });
+      showToast('Withdrawal limit reset to 1st Tier ($30 Min)');
+    };
+
+    // ==================== MODALS & TOAST ====================
+    window.openModal = function(id) {
+      const m = document.getElementById(id);
+      m.classList.remove('modal-hidden');
+      m.classList.add('modal-visible');
+    };
+
+    window.closeModal = function(id) {
+      const m = document.getElementById(id);
+      m.classList.remove('modal-visible');
+      m.classList.add('modal-hidden');
+    };
+
+    let toastTimer = null;
+    window.showToast = function(msg) {
+      const box = document.getElementById('toast-box');
+      document.getElementById('toast-msg').textContent = msg;
+      box.classList.remove('hidden');
+      box.classList.add('flex');
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => {
+        box.classList.add('hidden');
+        box.classList.remove('flex');
+      }, 3000);
+    };
+
+    // Initialize theme & static dropdowns on boot
+    try {
+      if (window.localStorage.getItem('tv_theme') === 'light') {
+        document.documentElement.classList.remove('dark');
+      }
+    } catch (e) {}
+    populateSelects();
+    syncCardPreview();
+  </script>
+</body>
+</html>
